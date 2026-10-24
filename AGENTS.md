@@ -1,63 +1,48 @@
-# iTrack AI Coding Instructions
+# lift lab
 
-You are working on **iTrack**, an open-source workout tracking application built with **React**, **TypeScript**, **Vite**, and **Capacitor** for Android.
+Personal workout tracker for one person. React 18, TypeScript, Vite, Tailwind, Zustand, Recharts. It is a PWA hosted on Vercel and saved to an iPhone home screen. Dark only.
 
-## 🏗 Architecture & Core Concepts
+## Product
 
-- **Platform Strategy**: Web-first architecture wrapped in Capacitor for Android. The app runs as a SPA (Single Page Application) inside a WebView.
-- **State Management**: 
-  - Uses **Zustand** (`src/store/useWorkoutStore.ts`) for global state.
-  - **Persistence**: Data is saved to `localStorage` via Zustand's `persist` middleware (`workout-storage`).
-  - **Key Stores**: `workouts`, `templates`, `activeWorkout`, `userProfile`.
-- **Routing**: **React Router DOM v6**.
-  - Routes defined in `src/App.tsx`.
-  - Uses `future` flags (`v7_startTransition`, `v7_relativeSplatPath`).
-- **Styling**: **Tailwind CSS** for all styling.
-- **Icons**: **Lucide React**.
+Shipped in small steps. This codebase is the lifting log:
 
-## 📂 Directory Structure
+- Saved routines, editable with a keyboard on a laptop
+- Live workout: weight in pounds × reps on every set. One tap marks a set done. Adding a set copies the previous set's weight and reps.
+- History of finished workouts
+- Progress: best weight per lift over time
+- Body weight log in pounds, with a trend
 
-- `project/src/store/`: Global state logic (Zustand).
-- `project/src/pages/`: Main screens (`Home`, `Workouts`, `Progress`, `Settings`).
-- `project/src/components/`: Reusable UI components.
-- `project/src/types/`: TypeScript interfaces (`Workout`, `Exercise`, `Set`).
-- `project/src/utils/`: Shared utilities (e.g., `wakeLock.ts`).
-- `project/android/`: Native Android project files (Gradle, Manifest).
-- `project/public/`: Static assets (manifest.json, icons).
+Still to come, in later PRs: a running log (date, time, distance, auto pace) and weekly run distance on Progress, then Supabase sync with email login.
 
-## 🛠 Critical Workflows
+Not in the product: rest timer, PRs, RPE, plate calculator, exercise library, food tracking, analytics, ads, or paid APIs.
 
-- **Development**: `npm run dev` (starts Vite server).
-- **Build**: `npm run build` (outputs to `dist`).
-- **Android Sync**: After building, run `npx cap sync` to update the Android native project with web assets.
-- **Linting**: `npm run lint` (ESLint).
+## Data
 
-## 🧩 Patterns & Conventions
+Zustand persist key `lift-lab` in localStorage. Weights are pounds. There is no kilogram conversion.
 
-### 1. Wake Lock Management
-- **Do not** use a Capacitor plugin for wake lock.
-- **Use** the custom utility in `src/utils/wakeLock.ts`.
-- Call `requestWakeLock()` on component mount if the screen needs to stay on.
-- The utility handles `visibilitychange` events to re-acquire the lock when the app comes to the foreground.
+- `templates` — routines
+- `workouts` — finished sessions. Each exercise has `sets[]` of `{ id, weight, reps, completed }`
+- `weightLog` — `{ id, date, weightLbs }`, one entry per day
+- `activeWorkout` — the in-progress session. It stays on the device until the workout is saved or discarded
 
-### 2. Data Model (`src/types/workout.ts`)
-- **Workouts**: Composed of `Exercise` objects.
-- **Exercises**: Can be `reps` based or `time` based.
-- **Sets**: Track `weight`, `reps`, and `completed` status.
-- **Templates**: Used to spawn new workouts; stored separately from completed workouts.
+`syncPayload()` in `project/src/data/liftState.ts` returns `{ templates, workouts, weightLog }`. That is the slot for a later sync. Do not put API keys or auth tokens in this store. `sanitizeLiftData()` is the read boundary.
 
-### 3. Component Structure
-- Prefer **functional components** with hooks.
-- Use **Tailwind** classes for layout and styling.
-- Isolate complex logic into custom hooks (e.g., `useTimer.ts`).
+The previous iTrack key `workout-storage` is not read.
 
-### 4. Android Specifics
-- The app ID is `com.iTrack.app`.
-- Android scheme is configured to `https` in `capacitor.config.ts`.
-- Native build artifacts are in `project/android/app/build/outputs/apk/`.
+## App
 
-## ⚠️ Common Pitfalls
+Routes in `project/src/App.tsx`: `/` Workout, `/history`, `/progress`, `/body`.
 
-- **Persistence**: Changes to the Zustand store schema may require clearing local storage or handling migrations, as `persist` saves the raw state.
-- **Wake Lock**: Ensure `releaseWakeLock()` is called in cleanup functions to prevent battery drain.
-- **Navigation**: Use `useNavigate` hook for programmatic navigation.
+Style: black `#000`, accent `#C6FF00`, Barlow and Barlow Condensed, heavy all-caps titles, large tap targets. Bottom tabs: Workout, History, Progress, Body. The layout is a 480px column.
+
+PWA: `project/public/manifest.json` (`name` and `short_name` are `lift lab`, theme `#000000`, `display: standalone`), Apple web-app meta and `apple-touch-icon` in `project/index.html`. `vite-plugin-pwa` generates the service worker. Icons are lime on black in `project/public/icons/`.
+
+Wake lock lives in `project/src/utils/wakeLock.ts` and is held only while the live workout is on screen.
+
+## Commands
+
+From `project/`:
+
+- `npm run dev`
+- `npm run build`
+- `npm run lint`
