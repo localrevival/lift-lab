@@ -1,72 +1,65 @@
-export interface Exercise {
+/** A logged set. Weight is pounds. */
+export interface LoggedSet {
   id: string;
-  name: string;
-  sets: Set[];
-  reps: number;
-  type: 'reps' | 'time';
-  videoUrl?: string;
-  targetMuscles: string[];
-  description?: string;
-  /** Which round of the routine this copy belongs to (1-based). Older workouts
-   *  encode it in the id (`<id>-set-N`) and name (`Name (Set N)`) instead. */
-  setNumber?: number;
-}
-
-export interface Set {
-  id: string;
-  reps: number;
   weight: number;
+  reps: number;
   completed: boolean;
 }
 
-export interface Workout {
+/** One lift inside a saved routine. */
+export interface RoutineExercise {
   id: string;
   name: string;
-  exercises: Exercise[];
-  date: string;
-  duration: number;
-  completionPercentage: number;
-  completed: boolean;
-  /** Ids of the exercises ticked off during the session. Missing on workouts
-   *  logged before per-exercise tracking existed. */
-  completedExerciseIds?: string[];
-  /** The routine this session was started from, when known. */
-  templateId?: string;
+  sets: number;
+  reps: number;
+  /** Starting weight in pounds. The live session prefers the last logged weight. */
+  weight: number;
 }
 
 export interface WorkoutTemplate {
   id: string;
   name: string;
-  exercises: Omit<Exercise, 'sets'>[];
-  numberOfSets: number; // New field to store the number of sets
+  exercises: RoutineExercise[];
 }
 
-/**
- * A Notion-style bookmark attached to a routine: either a video/link card
- * or a plain text note (e.g. "watch minute 5:17 for form").
- */
-export interface RoutineBookmark {
+/** One lift inside a finished or in-progress session. */
+export interface SessionExercise {
   id: string;
-  type: 'video' | 'note';
-  /** For 'video': the URL. For 'note': the note text. */
-  content: string;
-  /** Link metadata fetched best-effort when the bookmark is added. */
-  title?: string;
-  author?: string;
-  createdAt: string;
+  name: string;
+  plannedSets: number;
+  plannedReps: number;
+  sets: LoggedSet[];
 }
 
-/** A piece of equipment the user owns, used to ground AI recommendations. */
-export interface EquipmentItem {
+/** In-progress session. Stays on this device until it is finished. */
+export interface ActiveWorkout {
   id: string;
-  type: string; // e.g. 'Dumbbells', 'Kettlebell', 'Barbell', 'Bodyweight'
-  maxWeight?: number; // kg — heaviest available for weighted equipment
-  notes?: string;
+  templateId: string;
+  name: string;
+  startedAt: string;
+  exercises: SessionExercise[];
 }
-/** A single body-weight measurement, one per calendar day. */
+
+export interface WorkoutExercise {
+  id: string;
+  name: string;
+  sets: LoggedSet[];
+}
+
+export interface Workout {
+  id: string;
+  name: string;
+  templateId?: string;
+  /** ISO timestamp of when the session started. */
+  date: string;
+  /** Elapsed seconds. */
+  duration: number;
+  exercises: WorkoutExercise[];
+}
+
+/** One body-weight measurement. `date` is YYYY-MM-DD. Weight is pounds. */
 export interface WeightEntry {
   id: string;
-  /** ISO date string of the measurement. */
   date: string;
-  weightKg: number;
+  weightLbs: number;
 }

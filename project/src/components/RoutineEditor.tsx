@@ -1,287 +1,222 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd';
-import { ChevronDown, ChevronUp, GripVertical, Minus, Plus, PlusCircle } from 'lucide-react';
-import { EditorBar, FullScreen, Group, Row, Segmented } from './ui';
-import { MuscleSelect } from './MuscleSelect';
-import { useI18n } from '../i18n';
+import { useEffect, useState } from 'react';
+import type { RoutineExercise, WorkoutTemplate } from '../types/workout';
 import { useWorkoutStore } from '../store/useWorkoutStore';
-import type { Exercise, WorkoutTemplate } from '../types/workout';
+import { clampReps, clampWeight } from '../utils/format';
 
-type DraftExercise = Omit<Exercise, 'sets'>;
-
-const newExercise = (): DraftExercise => ({
-  id: crypto.randomUUID(),
-  name: '',
-  reps: 10,
-  type: 'reps',
-  videoUrl: '',
-  targetMuscles: [],
-  description: '',
-});
-
-interface RoutineEditorProps {
-  open: boolean;
-  onClose: () => void;
-  /** Routine to edit; omit to create a new one. */
-  template?: WorkoutTemplate;
+function blankExercise(): RoutineExercise {
+  return { id: crypto.randomUUID(), name: '', sets: 3, reps: 8, weight: 0 };
 }
 
-/** Full-screen editor for creating or editing a routine. */
-export function RoutineEditor({ open, onClose, template }: RoutineEditorProps) {
-  const { t, tp, clock } = useI18n();
-  const { addTemplate, updateTemplate } = useWorkoutStore();
+export function RoutineEditor({
+  open,
+  template,
+  onClose,
+}: {
+  open: boolean;
+  template?: WorkoutTemplate | null;
+  onClose: () => void;
+}) {
+  const addTemplate = useWorkoutStore((state) => state.addTemplate);
+  const updateTemplate = useWorkoutStore((state) => state.updateTemplate);
   const [name, setName] = useState('');
-  const [sets, setSets] = useState(3);
-  const [exercises, setExercises] = useState<DraftExercise[]>([]);
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [exercises, setExercises] = useState<RoutineExercise[]>([]);
 
   useEffect(() => {
     if (!open) return;
     setName(template?.name ?? '');
-    setSets(template?.numberOfSets || 3);
-    const list = template ? template.exercises.map((e) => ({ ...e })) : [newExercise()];
-    setExercises(list);
-    setExpanded(template ? null : list[0].id);
+    setExercises(template ? template.exercises.map((exercise) => ({ ...exercise })) : [blankExercise()]);
   }, [open, template]);
 
-  const update = (id: string, patch: Partial<DraftExercise>) =>
-    setExercises((list) => list.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [open, onClose]);
 
-  const add = () => {
-    const exercise = newExercise();
-    setExercises((list) => [...list, exercise]);
-    setExpanded(exercise.id);
+  if (!open) return null;
+
+  const valid = name.trim().length > 0 && exercises.length > 0 && exercises.every((exercise) => exercise.name.trim());
+
+  const update = (id: string, patch: Partial<RoutineExercise>) => {
+    setExercises((list) => list.map((exercise) => (exercise.id === id ? { ...exercise, ...patch } : exercise)));
   };
 
-  const remove = (id: string) => setExercises((list) => list.filter((e) => e.id !== id));
-
-  const onDragEnd = (result: DropResult) => {
-    if (!result.destination) return;
-    const list = Array.from(exercises);
-    const [moved] = list.splice(result.source.index, 1);
-    list.splice(result.destination.index, 0, moved);
-    setExercises(list);
+  const move = (index: number, direction: -1 | 1) => {
+    setExercises((list) => {
+      const next = index + direction;
+      if (next < 0 || next >= list.length) return list;
+      const copy = [...list];
+      const [item] = copy.splice(index, 1);
+      copy.splice(next, 0, item);
+      return copy;
+    });
   };
-
-  const valid = name.trim().length > 0 && exercises.length > 0 && exercises.every((e) => e.name.trim());
 
   const save = () => {
     if (!valid) return;
-    const cleaned = exercises.map((e) => ({ ...e, name: e.name.trim(), reps: Math.max(1, Math.round(e.reps || 1)) }));
+    const cleaned: RoutineExercise[] = exercises.map((exercise) => ({
+      ...exercise,
+      name: exercise.name.trim(),
+      sets: Math.max(1, Math.round(exercise.sets || 1)),
+      reps: Math.max(1, clampReps(exercise.reps || 1)),
+      weight: clampWeight(exercise.weight || 0),
+    }));
     if (template) {
-      updateTemplate({ ...template, name: name.trim(), numberOfSets: sets, exercises: cleaned });
+      updateTemplate({ ...template, name: name.trim(), exercises: cleaned });
     } else {
-      addTemplate({ id: crypto.randomUUID(), name: name.trim(), numberOfSets: sets, exercises: cleaned });
+      addTemplate({ id: crypto.randomUUID(), name: name.trim(), exercises: cleaned });
     }
     onClose();
   };
 
-  const summary = (e: DraftExercise) => (e.type === 'time' ? clock(e.reps) : tp('session.reps', e.reps));
-
   return (
-    <FullScreen
-      open={open}
-      onClose={onClose}
-      tone="grouped"
-      header={
-        <EditorBar
-          title={template ? t('editor.editTitle') : t('editor.newTitle')}
-          onCancel={onClose}
-          cancelLabel={t('common.cancel')}
-          onSave={save}
-          saveLabel={t('common.save')}
-          saveDisabled={!valid}
-        />
-      }
-    >
-      <div className="px-4">
-        <Group label={t('editor.routine')}>
-          <Row
-            label={t('editor.name')}
-            htmlFor="routine-name"
-            right={
-              <input
-                id="routine-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={t('editor.namePlaceholder')}
-                className="w-48 bg-transparent text-right text-[15px] text-gray-900 placeholder:text-gray-400 focus:outline-none dark:text-white"
-              />
-            }
-          />
-          <Row
-            label={t('editor.setsPerExercise')}
-            description={tp('editor.totalExercises', exercises.length * sets)}
-            right={<Stepper value={sets} min={1} max={10} onChange={setSets} label={t('editor.setsPerExercise')} />}
-          />
-        </Group>
-
-        <Group label={tp('editor.exercisesCount', exercises.length)} footnote={t('editor.dragHint')}>
-          <DragDropContext onDragEnd={onDragEnd}>
-            <Droppable droppableId="exercises">
-              {(drop) => (
-                <div ref={drop.innerRef} {...drop.droppableProps} className="divide-y divide-gray-200/70 dark:divide-white/[0.06]">
-                  {exercises.map((exercise, index) => (
-                    <Draggable key={exercise.id} draggableId={exercise.id} index={index}>
-                      {(drag, snapshot) => (
-                        <div
-                          ref={drag.innerRef}
-                          {...drag.draggableProps}
-                          className={`${expanded === exercise.id ? 'bg-indigo-50/60 dark:bg-indigo-500/[0.08]' : 'bg-gray-50 dark:bg-gray-900'} ${
-                            snapshot.isDragging ? 'shadow-xl' : ''
-                          }`}
-                        >
-                          <div className="flex items-center gap-3 px-4 py-3">
-                            <span {...drag.dragHandleProps} aria-label={t('editor.dragHandle')} className="cursor-grab text-gray-300 active:cursor-grabbing dark:text-gray-600">
-                              <GripVertical className="h-4 w-4" />
-                            </span>
-                            <span className={`w-4 text-[13px] tabular-nums ${expanded === exercise.id ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`}>
-                              {index + 1}
-                            </span>
-                            <button
-                              onClick={() => setExpanded(expanded === exercise.id ? null : exercise.id)}
-                              className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left"
-                            >
-                              <span className={`truncate text-[15px] ${expanded === exercise.id ? 'font-semibold' : ''} ${exercise.name ? 'text-gray-900 dark:text-white' : 'text-gray-400'}`}>
-                                {exercise.name || t('editor.untitled')}
-                              </span>
-                              <span className="flex flex-shrink-0 items-center gap-1.5 text-[13px] text-gray-500 dark:text-gray-400">
-                                {summary(exercise)}
-                                {expanded === exercise.id ? (
-                                  <ChevronUp className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                                ) : (
-                                  <ChevronDown className="h-4 w-4 text-gray-300 dark:text-gray-600" />
-                                )}
-                              </span>
-                            </button>
-                          </div>
-
-                          {expanded === exercise.id && (
-                            <div className="ml-11 mr-4 divide-y divide-indigo-100 pb-3 text-[14px] dark:divide-white/[0.06]">
-                              <Field label={t('editor.exerciseName')}>
-                                <input
-                                  value={exercise.name}
-                                  onChange={(e) => update(exercise.id, { name: e.target.value })}
-                                  placeholder={t('editor.exercisePlaceholder')}
-                                  autoFocus={!exercise.name}
-                                  className="w-full bg-transparent text-right text-gray-900 placeholder:text-gray-400 focus:outline-none dark:text-white"
-                                />
-                              </Field>
-                              <Field label={t('editor.type')}>
-                                <Segmented
-                                  label={t('editor.type')}
-                                  value={exercise.type}
-                                  onChange={(type) => update(exercise.id, { type, reps: type === 'time' ? 30 : 10 })}
-                                  options={[
-                                    { value: 'reps', label: t('editor.typeReps') },
-                                    { value: 'time', label: t('editor.typeTime') },
-                                  ]}
-                                />
-                              </Field>
-                              <Field label={exercise.type === 'time' ? t('editor.seconds') : t('editor.repetitions')}>
-                                <Stepper
-                                  value={exercise.reps}
-                                  min={1}
-                                  max={exercise.type === 'time' ? 3600 : 500}
-                                  step={exercise.type === 'time' ? 5 : 1}
-                                  onChange={(reps) => update(exercise.id, { reps })}
-                                  label={exercise.type === 'time' ? t('editor.seconds') : t('editor.repetitions')}
-                                />
-                              </Field>
-                              <Field label={t('editor.video')}>
-                                <input
-                                  type="url"
-                                  value={exercise.videoUrl ?? ''}
-                                  onChange={(e) => update(exercise.id, { videoUrl: e.target.value })}
-                                  placeholder="https://youtube.com/…"
-                                  className="w-full bg-transparent text-right text-gray-900 placeholder:text-gray-400 focus:outline-none dark:text-white"
-                                />
-                              </Field>
-                              <div className="py-2.5">
-                                <p className="mb-2 text-gray-600 dark:text-gray-300">{t('editor.muscles')}</p>
-                                <MuscleSelect
-                                  label={t('editor.muscles')}
-                                  value={exercise.targetMuscles}
-                                  onChange={(targetMuscles) => update(exercise.id, { targetMuscles })}
-                                />
-                              </div>
-                              <div className="py-2.5">
-                                <p className="text-gray-600 dark:text-gray-300">{t('editor.notes')}</p>
-                                <textarea
-                                  value={exercise.description ?? ''}
-                                  onChange={(e) => update(exercise.id, { description: e.target.value })}
-                                  placeholder={t('editor.notesPlaceholder')}
-                                  rows={2}
-                                  className="input mt-2 resize-none"
-                                />
-                              </div>
-                              <div className="pt-2.5">
-                                <button onClick={() => remove(exercise.id)} className="text-[14px] font-medium text-red-600 dark:text-red-400">
-                                  {t('editor.removeExercise')}
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </Draggable>
-                  ))}
-                  {drop.placeholder}
-                </div>
-              )}
-            </Droppable>
-          </DragDropContext>
-          <button onClick={add} className="flex w-full items-center gap-2 px-4 py-3 text-[15px] font-medium text-indigo-600 dark:text-indigo-400">
-            <PlusCircle className="h-5 w-5" strokeWidth={1.75} />
-            {t('editor.addExercise')}
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black">
+      <form
+        className="mx-auto flex min-h-screen w-full max-w-[480px] flex-col px-[18px] pt-safe"
+        onSubmit={(event) => {
+          event.preventDefault();
+          save();
+        }}
+      >
+        <div className="flex h-14 items-center justify-between">
+          <button type="button" onClick={onClose} className="font-condensed text-[16px] font-bold uppercase tracking-[1.2px] text-[#888]">
+            Cancel
           </button>
-        </Group>
-      </div>
-    </FullScreen>
-  );
-}
+          <p className="font-condensed text-[14px] font-bold tracking-[2px] text-accent">{template ? 'EDIT' : 'NEW'}</p>
+          <span className="w-16" />
+        </div>
+        <h1 className="font-condensed text-[48px] font-black uppercase leading-[0.9] tracking-[-0.5px]">
+          {template ? 'Edit routine' : 'New routine'}
+        </h1>
+        <label className="mt-6 block">
+          <span className="font-condensed text-[13px] font-bold tracking-[1.5px] text-[#777]">NAME</span>
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="PUSH DAY"
+            autoComplete="off"
+            autoCapitalize="characters"
+            className="mt-1 w-full border-b border-[#333] bg-transparent py-2 font-condensed text-[40px] font-black uppercase leading-none outline-none placeholder:text-[#333]"
+          />
+        </label>
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-4 py-2.5">
-      <span className="flex-shrink-0 text-gray-600 dark:text-gray-300">{label}</span>
-      <div className="flex min-w-0 flex-1 justify-end">{children}</div>
+        <div className="mt-6 flex flex-col gap-4 pb-4">
+          {exercises.map((exercise, index) => (
+            <fieldset key={exercise.id} className="border-t border-[#1f1f1f] pt-4">
+              <legend className="font-condensed text-[13px] font-bold tracking-[1.5px] text-[#777]">LIFT {String(index + 1).padStart(2, '0')}</legend>
+              <input
+                value={exercise.name}
+                onChange={(event) => update(exercise.id, { name: event.target.value })}
+                placeholder="BENCH PRESS"
+                autoComplete="off"
+                autoCapitalize="words"
+                aria-label={`Lift ${index + 1} name`}
+                className="mt-2 w-full bg-transparent font-condensed text-[28px] font-extrabold uppercase leading-none outline-none placeholder:text-[#333]"
+              />
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                <Stepper label="Sets" value={exercise.sets} min={1} step={1} onChange={(sets) => update(exercise.id, { sets })} />
+                <Stepper label="Reps" value={exercise.reps} min={1} step={1} onChange={(reps) => update(exercise.id, { reps })} />
+                <Stepper label="Lb" value={exercise.weight} min={0} step={5} onChange={(weight) => update(exercise.id, { weight })} />
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                <button type="button" className="btn-ghost" disabled={index === 0} onClick={() => move(index, -1)}>
+                  Up
+                </button>
+                <button type="button" className="btn-ghost" disabled={index === exercises.length - 1} onClick={() => move(index, 1)}>
+                  Down
+                </button>
+                <button
+                  type="button"
+                  className="btn-ghost text-[#888]"
+                  onClick={() => setExercises((list) => list.filter((item) => item.id !== exercise.id))}
+                >
+                  Remove
+                </button>
+              </div>
+            </fieldset>
+          ))}
+          <button
+            type="button"
+            className="btn-line"
+            onClick={() => setExercises((list) => [...list, blankExercise()])}
+          >
+            + Add lift
+          </button>
+        </div>
+
+        <div className="sticky bottom-0 mt-auto bg-black py-3" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+          <button type="submit" className="btn-lime" disabled={!valid}>
+            Save routine
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
 
 function Stepper({
-  value,
-  onChange,
-  min,
-  max,
-  step = 1,
   label,
+  value,
+  min,
+  step,
+  onChange,
 }: {
-  value: number;
-  onChange: (value: number) => void;
-  min: number;
-  max: number;
-  step?: number;
   label: string;
+  value: number;
+  min: number;
+  step: number;
+  onChange: (value: number) => void;
 }) {
-  const clamp = (v: number) => Math.min(max, Math.max(min, v));
+  const show = (next: number) => (Number.isInteger(next) ? String(next) : String(Math.round(next * 10) / 10));
+  const [raw, setRaw] = useState(show(value));
+
+  const setValue = (next: number) => {
+    const clamped = Math.max(min, Math.round(next * 10) / 10);
+    onChange(clamped);
+    setRaw(show(clamped));
+  };
+
   return (
-    <span className="flex items-center overflow-hidden rounded-lg border hairline bg-white dark:bg-transparent">
-      <button type="button" aria-label={`− ${label}`} onClick={() => onChange(clamp(value - step))} className="px-2.5 py-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-white/[0.06]">
-        <Minus className="h-4 w-4" />
-      </button>
-      <input
-        type="number"
-        inputMode="numeric"
-        aria-label={label}
-        value={value}
-        onChange={(e) => onChange(clamp(parseInt(e.target.value, 10) || min))}
-        className="w-12 border-x hairline bg-transparent py-1 text-center font-semibold tabular-nums text-gray-900 focus:outline-none dark:text-white"
-      />
-      <button type="button" aria-label={`+ ${label}`} onClick={() => onChange(clamp(value + step))} className="px-2.5 py-1.5 text-indigo-600 hover:bg-gray-100 dark:text-indigo-400 dark:hover:bg-white/[0.06]">
-        <Plus className="h-4 w-4" />
-      </button>
-    </span>
+    <div>
+      <span className="font-condensed text-[12px] font-bold tracking-[1.2px] text-[#777]">{label.toUpperCase()}</span>
+      <div className="mt-1 flex items-center gap-1">
+        <button
+          type="button"
+          aria-label={`Decrease ${label}`}
+          className="flex h-11 w-9 shrink-0 items-center justify-center rounded-md bg-[#1a1a1a] font-condensed text-[22px] font-bold"
+          onClick={() => setValue(value - step)}
+        >
+          −
+        </button>
+        <input
+          inputMode="decimal"
+          aria-label={label}
+          value={raw}
+          onFocus={(event) => event.currentTarget.select()}
+          onChange={(event) => {
+            const text = event.target.value;
+            setRaw(text);
+            if (/^\d+(\.\d+)?$/.test(text)) onChange(Math.max(min, Number(text)));
+          }}
+          className="h-11 w-full min-w-0 bg-transparent text-center font-condensed text-[22px] font-extrabold outline-none"
+        />
+        <button
+          type="button"
+          aria-label={`Increase ${label}`}
+          className="flex h-11 w-9 shrink-0 items-center justify-center rounded-md bg-[#1a1a1a] font-condensed text-[22px] font-bold"
+          onClick={() => setValue(value + step)}
+        >
+          +
+        </button>
+      </div>
+    </div>
   );
 }
