@@ -1,11 +1,8 @@
 {
-  "version": 2,
-  "buildCommand": "cd project && npm install && npm run build",
+  "installCommand": "npm install --prefix project --include=dev",
+  "buildCommand": "npm run build --prefix project",
   "outputDirectory": "project/dist",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
-  ],
-  "github": {
-    "silent": true
-  }
+  ]
 }
