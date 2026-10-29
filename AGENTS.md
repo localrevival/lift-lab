@@ -48,3 +48,7 @@ From `project/`:
 - `npm run dev`
 - `npm run build`
 - `npm run lint`
+
+## Agent working rules
+
+Never record demo or screen-recording videos; verification is a few screenshots at most. Keep verification short and proportional to the change. Open the PR as soon as lint and build pass and the change is verified.
