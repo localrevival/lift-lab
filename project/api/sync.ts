@@ -1,8 +1,9 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
+import postgres from 'postgres';
 
 /**
- * Server-only sync. The service role key and passcode live in Vercel env,
- * never in the client bundle. One row in public.app_state.
+ * Server-only sync. The database URL and passcode live in Vercel env,
+ * never in the client bundle. One row in lift_lab.app_state.
  */
 const ROW_ID = 'default';
 
@@ -18,6 +19,18 @@ interface ApiResponse {
   json(payload: unknown): void;
 }
 
+export interface SyncDb {
+  read(): Promise<{ data: unknown; updated_at: string | null } | null>;
+  write(
+    data: Record<string, unknown>,
+    updatedAt: string,
+  ): Promise<{ data: unknown; updated_at: string | null } | null>;
+}
+
+type Sql = ReturnType<typeof postgres>;
+
+let client: Sql | undefined;
+
 function header(req: ApiRequest, name: string): string {
   const value = req.headers[name];
   if (Array.isArray(value)) return value[0] ?? '';
@@ -31,11 +44,55 @@ function passcodesMatch(given: string, expected: string): boolean {
   return timingSafeEqual(left, right);
 }
 
-function supabaseEnv(): { url: string; key: string } | null {
-  const url = (process.env.SUPABASE_URL ?? '').replace(/\/$/, '');
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
-  if (!url.startsWith('https://') || !key) return null;
-  return { url, key };
+function databaseUrl(): string | null {
+  const url = (process.env.LIFT_DATABASE_URL ?? '').trim();
+  if (!url.startsWith('postgres://') && !url.startsWith('postgresql://')) return null;
+  return url;
+}
+
+function getSql(url: string): Sql {
+  if (!client) client = postgres(url, { prepare: false, max: 1 });
+  return client;
+}
+
+function asTimestamp(value: unknown): string | null {
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.toISOString();
+  if (typeof value === 'string' && !Number.isNaN(Date.parse(value))) return value;
+  return null;
+}
+
+function mapRow(
+  row: { data?: unknown; updated_at?: unknown } | undefined,
+): { data: unknown; updated_at: string | null } | null {
+  if (!row) return null;
+  return { data: row.data ?? null, updated_at: asTimestamp(row.updated_at) };
+}
+
+function liveDb(): SyncDb | null {
+  const url = databaseUrl();
+  if (!url) return null;
+  const sql = getSql(url);
+  return {
+    async read() {
+      const rows = await sql<{ data: unknown; updated_at: Date | string | null }[]>`
+        select data, updated_at
+        from lift_lab.app_state
+        where id = ${ROW_ID}
+      `;
+      return mapRow(rows[0]);
+    },
+    async write(data, updatedAt) {
+      const rows = await sql<{ data: unknown; updated_at: Date | string | null }[]>`
+        insert into lift_lab.app_state (id, data, updated_at)
+        values (${ROW_ID}, ${JSON.stringify(data)}::jsonb, ${updatedAt})
+        on conflict (id) do update
+        set data = excluded.data,
+            updated_at = excluded.updated_at
+        returning data, updated_at
+      `;
+      return mapRow(rows[0]);
+    },
+  };
 }
 
 function asJson(body: unknown): unknown {
@@ -64,24 +121,7 @@ function payloadFrom(body: unknown): Record<string, unknown> | null {
   return data as Record<string, unknown>;
 }
 
-async function supabaseFetch(env: { url: string; key: string }, path: string, init: RequestInit): Promise<Response> {
-  const headers = new Headers(init.headers);
-  headers.set('apikey', env.key);
-  headers.set('Authorization', `Bearer ${env.key}`);
-  return fetch(`${env.url}${path}`, { ...init, headers });
-}
-
-function rowFrom(body: unknown): { data: unknown; updated_at: string | null } | null {
-  const row = Array.isArray(body) ? body[0] : null;
-  if (!row || typeof row !== 'object') return null;
-  const record = row as { data?: unknown; updated_at?: unknown };
-  return {
-    data: record.data ?? null,
-    updated_at: typeof record.updated_at === 'string' ? record.updated_at : null,
-  };
-}
-
-export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
+export async function handleSync(req: ApiRequest, res: ApiResponse, db?: SyncDb): Promise<void> {
   res.setHeader('Cache-Control', 'no-store');
 
   const expected = process.env.LIFT_PASSCODE ?? '';
@@ -92,25 +132,15 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     return;
   }
 
-  const env = supabaseEnv();
-  if (!env) {
+  const store = db ?? liveDb();
+  if (!store) {
     res.status(500).json({ error: 'not configured' });
     return;
   }
 
   try {
     if (req.method === 'GET') {
-      const response = await supabaseFetch(
-        env,
-        `/rest/v1/app_state?id=eq.${encodeURIComponent(ROW_ID)}&select=data,updated_at`,
-        { headers: { Accept: 'application/json' } },
-      );
-      if (!response.ok) {
-        console.error('supabase read failed', response.status);
-        res.status(502).json({ error: 'sync failed' });
-        return;
-      }
-      const row = rowFrom(await response.json());
+      const row = await store.read();
       res.status(200).json(row ?? { data: null, updated_at: null });
       return;
     }
@@ -122,28 +152,18 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         return;
       }
       const updatedAt = new Date().toISOString();
-      const response = await supabaseFetch(env, '/rest/v1/app_state?on_conflict=id', {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-          Prefer: 'resolution=merge-duplicates,return=representation',
-        },
-        body: JSON.stringify({ id: ROW_ID, data, updated_at: updatedAt }),
-      });
-      if (!response.ok) {
-        console.error('supabase write failed', response.status);
-        res.status(502).json({ error: 'sync failed' });
-        return;
-      }
-      const row = rowFrom(await response.json());
+      const row = await store.write(data, updatedAt);
       res.status(200).json({ data, updated_at: row?.updated_at ?? updatedAt });
       return;
     }
 
     res.status(405).json({ error: 'method not allowed' });
   } catch {
-    console.error('sync handler failed');
+    console.error(req.method === 'PUT' ? 'sync write failed' : 'sync read failed');
     res.status(502).json({ error: 'sync failed' });
   }
+}
+
+export default function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
+  return handleSync(req, res);
 }

@@ -14,7 +14,7 @@ Shipped in small steps. This codebase is the lifting log:
 
 Still to come, in a later PR: a running log (date, time, distance, auto pace) and weekly run distance on Progress.
 
-Sync is a shared passcode, not an account. Each device enters it once. The browser stores it in localStorage under `lift-lab-passcode` and calls `/api/sync` only. The Vercel function checks the `x-lift-passcode` header against `LIFT_PASSCODE` and uses `SUPABASE_URL` plus `SUPABASE_SERVICE_ROLE_KEY` server-side. None of those three belong in the client bundle. Schema: `project/supabase/schema.sql`. Placeholders: `project/.env.example`.
+Sync is a shared passcode, not an account. Each device enters it once. The browser stores it in localStorage under `lift-lab-passcode` and calls `/api/sync` only. The Vercel function checks the `x-lift-passcode` header against `LIFT_PASSCODE` and connects with `LIFT_DATABASE_URL` (Supabase transaction pooler, port 6543, `prepare: false`). The pooler username for the custom role is `lift_lab_app.<project-ref>`. Neither env var belongs in the client bundle. There is no Supabase Auth and no browser Supabase client. The table lives in schema `lift_lab` inside the Local Revival Supabase project. Schema: `project/supabase/schema.sql`. Placeholders: `project/.env.example`.
 
 Not in the product: rest timer, PRs, RPE, plate calculator, exercise library, food tracking, analytics, ads, or paid APIs.
 
