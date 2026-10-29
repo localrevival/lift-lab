@@ -9,7 +9,7 @@ import type {
   WorkoutTemplate,
 } from '../types/workout';
 
-/** Everything that lives in local storage. A later sync can ship `syncPayload`. */
+/** Everything that lives in local storage. Sync ships `syncPayload` and leaves the live session here. */
 export interface LiftData {
   templates: WorkoutTemplate[];
   workouts: Workout[];
@@ -25,7 +25,7 @@ export const emptyLiftData = (): LiftData => ({
 });
 
 /**
- * The slice a future account sync should read and write.
+ * The slice sync reads and writes.
  * The in-progress session stays on the device until the workout is finished.
  */
 export function syncPayload(data: LiftData): Pick<LiftData, 'templates' | 'workouts' | 'weightLog'> {

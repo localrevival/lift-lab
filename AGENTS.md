@@ -12,7 +12,9 @@ Shipped in small steps. This codebase is the lifting log:
 - Progress: best weight per lift over time
 - Body weight log in pounds, with a trend
 
-Still to come, in later PRs: a running log (date, time, distance, auto pace) and weekly run distance on Progress, then Supabase sync with email login.
+Still to come, in a later PR: a running log (date, time, distance, auto pace) and weekly run distance on Progress.
+
+Sync is a shared passcode, not an account. Each device enters it once. The browser stores it in localStorage under `lift-lab-passcode` and calls `/api/sync` only. The Vercel function checks the `x-lift-passcode` header against `LIFT_PASSCODE` and uses `SUPABASE_URL` plus `SUPABASE_SERVICE_ROLE_KEY` server-side. None of those three belong in the client bundle. Schema: `project/supabase/schema.sql`. Placeholders: `project/.env.example`.
 
 Not in the product: rest timer, PRs, RPE, plate calculator, exercise library, food tracking, analytics, ads, or paid APIs.
 
@@ -25,7 +27,7 @@ Zustand persist key `lift-lab` in localStorage. Weights are pounds. There is no 
 - `weightLog` — `{ id, date, weightLbs }`, one entry per day
 - `activeWorkout` — the in-progress session. It stays on the device until the workout is saved or discarded
 
-`syncPayload()` in `project/src/data/liftState.ts` returns `{ templates, workouts, weightLog }`. That is the slot for a later sync. Do not put API keys or auth tokens in this store. `sanitizeLiftData()` is the read boundary.
+`syncPayload()` in `project/src/data/liftState.ts` returns `{ templates, workouts, weightLog }`. That is the blob sync pushes and pulls. Do not put the passcode, API keys, or auth tokens in this store. `sanitizeLiftData()` is the read boundary. Last-write-wins lives in `project/src/sync/lastWriteWins.ts`.
 
 The previous iTrack key `workout-storage` is not read.
 
