@@ -51,4 +51,10 @@ From `project/`:
 
 ## Agent working rules
 
-Never record demo or screen-recording videos; verification is a few screenshots at most. Keep verification short and proportional to the change. Open the PR as soon as lint and build pass and the change is verified.
+- Start editing within about 10 file reads.
+- Open a draft PR as soon as lint, tests, and the real Vercel build pass.
+- Take 3 screenshots max, and never record demo or screen-recording videos.
+- Keep verification short and proportional to the change.
+- Report status by 20 minutes.
+- One change per PR: about 300 lines or 8 files max.
+- Never merge without Brandon's OK.
