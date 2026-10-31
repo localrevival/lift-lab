@@ -6,7 +6,7 @@ import { Sheet } from '../components/Sheet';
 import { useWorkoutStore } from '../store/useWorkoutStore';
 import type { WorkoutTemplate } from '../types/workout';
 import { formatTag } from '../utils/format';
-import { latestWorkoutFor } from '../utils/workout';
+import { latestWorkoutFor, liftLabel } from '../utils/workout';
 
 export function Workout() {
   const templates = useWorkoutStore((state) => state.templates);
@@ -47,7 +47,7 @@ export function Workout() {
                 <ul className="mt-3">
                   {template.exercises.map((exercise) => (
                     <li key={exercise.id} className="flex items-baseline justify-between gap-3 py-1">
-                      <span className="min-w-0 truncate font-condensed text-[18px] font-bold uppercase">{exercise.name}</span>
+                      <span className="min-w-0 truncate font-condensed text-[18px] font-bold uppercase">{liftLabel(exercise.name, exercise.equipment)}</span>
                       <span className="shrink-0 text-[13px] font-bold tracking-[1px] text-[#777]">
                         {exercise.sets} × {exercise.reps}
                         {exercise.weight > 0 ? ` · ${exercise.weight}` : ''}

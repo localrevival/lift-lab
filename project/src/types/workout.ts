@@ -14,6 +14,8 @@ export interface RoutineExercise {
   reps: number;
   /** Starting weight in pounds. The live session prefers the last logged weight. */
   weight: number;
+  /** Library option chosen for this lift, when the list has one. */
+  equipment?: string;
 }
 
 export interface WorkoutTemplate {
@@ -26,6 +28,7 @@ export interface WorkoutTemplate {
 export interface SessionExercise {
   id: string;
   name: string;
+  equipment?: string;
   plannedSets: number;
   plannedReps: number;
   sets: LoggedSet[];
@@ -43,6 +46,7 @@ export interface ActiveWorkout {
 export interface WorkoutExercise {
   id: string;
   name: string;
+  equipment?: string;
   sets: LoggedSet[];
 }
 
