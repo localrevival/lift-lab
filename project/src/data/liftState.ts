@@ -44,6 +44,12 @@ function num(value: unknown, fallback = 0): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
 
+function equipmentOf(value: Record<string, unknown>): string | undefined {
+  if (typeof value.equipment !== 'string') return undefined;
+  const trimmed = value.equipment.trim();
+  return trimmed || undefined;
+}
+
 function sanitizeSet(value: unknown): LoggedSet | null {
   if (!isRecord(value) || typeof value.id !== 'string') return null;
   return {
@@ -58,12 +64,14 @@ function sanitizeRoutineExercise(value: unknown): RoutineExercise | null {
   if (!isRecord(value) || typeof value.id !== 'string' || typeof value.name !== 'string') return null;
   const name = value.name.trim();
   if (!name) return null;
+  const equipment = equipmentOf(value);
   return {
     id: value.id,
     name,
     sets: Math.max(1, Math.round(num(value.sets, 1))),
     reps: Math.max(1, Math.round(num(value.reps, 1))),
     weight: Math.max(0, num(value.weight)),
+    ...(equipment ? { equipment } : {}),
   };
 }
 
@@ -85,7 +93,8 @@ function sanitizeWorkoutExercise(value: unknown): WorkoutExercise | null {
   const name = value.name.trim();
   if (!name) return null;
   const sets = value.sets.map(sanitizeSet).filter((item): item is LoggedSet => item !== null);
-  return { id: value.id, name, sets };
+  const equipment = equipmentOf(value);
+  return { id: value.id, name, ...(equipment ? { equipment } : {}), sets };
 }
 
 function sanitizeSessionExercise(value: unknown): SessionExercise | null {

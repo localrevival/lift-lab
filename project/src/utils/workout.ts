@@ -5,6 +5,17 @@ function sameName(a: string, b: string): boolean {
   return a.trim().toLowerCase() === b.trim().toLowerCase();
 }
 
+/** Chart and history label. Equipment keeps barbell and dumbbell on separate series. */
+export function liftLabel(name: string, equipment?: string): string {
+  const trimmed = name.trim();
+  const gear = equipment?.trim();
+  return gear ? `${trimmed} · ${gear}` : trimmed;
+}
+
+function liftKey(name: string, equipment?: string): string {
+  return liftLabel(name, equipment).toLowerCase();
+}
+
 export function movedLbs(exercises: { sets: LoggedSet[] }[]): number {
   return exercises.reduce(
     (sum, exercise) =>
@@ -33,10 +44,15 @@ export function activeSetId(exercises: SessionExercise[]): string | null {
 }
 
 /** Last completed set for this lift, from finished workouts only. */
-export function lastPerformance(workouts: Workout[], name: string): { weight: number; reps: number } | null {
+export function lastPerformance(
+  workouts: Workout[],
+  name: string,
+  equipment?: string
+): { weight: number; reps: number } | null {
+  const key = liftKey(name, equipment);
   const sorted = [...workouts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   for (const workout of sorted) {
-    const exercise = workout.exercises.find((item) => sameName(item.name, name));
+    const exercise = workout.exercises.find((item) => liftKey(item.name, item.equipment) === key);
     if (!exercise) continue;
     const done = [...exercise.sets].reverse().find((set) => set.completed);
     if (done) return { weight: done.weight, reps: done.reps };
@@ -51,12 +67,13 @@ export function sessionFromTemplate(template: WorkoutTemplate, workouts: Workout
     name: template.name,
     startedAt: new Date().toISOString(),
     exercises: template.exercises.map((exercise) => {
-      const last = lastPerformance(workouts, exercise.name);
+      const last = lastPerformance(workouts, exercise.name, exercise.equipment);
       const weight = last?.weight ?? exercise.weight;
       const count = Math.max(1, exercise.sets);
       return {
         id: crypto.randomUUID(),
         name: exercise.name,
+        ...(exercise.equipment ? { equipment: exercise.equipment } : {}),
         plannedSets: count,
         plannedReps: exercise.reps,
         sets: Array.from({ length: count }, () => ({
@@ -83,12 +100,12 @@ export function loggedLiftNames(workouts: Workout[]): string[] {
   const sorted = [...workouts].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   for (const workout of sorted) {
     for (const exercise of workout.exercises) {
-      const key = exercise.name.trim().toLowerCase();
+      const key = liftKey(exercise.name, exercise.equipment);
       if (!key || seen.has(key)) continue;
       const hit = exercise.sets.some((set) => set.completed && set.weight > 0);
       if (!hit) continue;
       seen.add(key);
-      names.push(exercise.name.trim());
+      names.push(liftLabel(exercise.name, exercise.equipment));
     }
   }
   return names.sort((a, b) => a.localeCompare(b));
@@ -104,7 +121,7 @@ export interface BestPoint {
 export function bestWeightSeries(workouts: Workout[], name: string): BestPoint[] {
   const byDay = new Map<string, BestPoint>();
   for (const workout of workouts) {
-    const exercise = workout.exercises.find((item) => sameName(item.name, name));
+    const exercise = workout.exercises.find((item) => liftKey(item.name, item.equipment) === name.trim().toLowerCase());
     if (!exercise) continue;
     const best = exercise.sets.filter((set) => set.completed).reduce((max, set) => Math.max(max, set.weight), 0);
     if (best <= 0) continue;

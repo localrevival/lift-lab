@@ -4,7 +4,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { Sheet } from '../components/Sheet';
 import { useWorkoutStore } from '../store/useWorkoutStore';
 import { formatClock, formatTag, formatVolume, formatWeight } from '../utils/format';
-import { movedLbs, setCounts } from '../utils/workout';
+import { liftLabel, movedLbs, setCounts } from '../utils/workout';
 
 export function History() {
   const workouts = useWorkoutStore((state) => state.workouts);
@@ -48,7 +48,7 @@ export function History() {
                   <div className="mt-3 border-t border-[#1f1f1f] pt-2">
                     {workout.exercises.map((exercise) => (
                       <div key={exercise.id} className="py-2">
-                        <p className="font-condensed text-[18px] font-extrabold uppercase">{exercise.name}</p>
+                        <p className="font-condensed text-[18px] font-extrabold uppercase">{liftLabel(exercise.name, exercise.equipment)}</p>
                         {exercise.sets.map((set, index) => (
                           <div key={set.id} className="mt-1 flex items-baseline justify-between">
                             <span className="w-8 font-condensed text-[14px] font-bold text-[#666]">{String(index + 1).padStart(2, '0')}</span>

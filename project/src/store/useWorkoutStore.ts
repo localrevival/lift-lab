@@ -131,6 +131,7 @@ export const useWorkoutStore = create<LiftStore>()(
                 exercises: active.exercises.map((exercise) => ({
                   id: exercise.id,
                   name: exercise.name,
+                  ...(exercise.equipment ? { equipment: exercise.equipment } : {}),
                   sets: exercise.sets.map((item) => ({ ...item })),
                 })),
               },
@@ -151,6 +152,7 @@ export const useWorkoutStore = create<LiftStore>()(
     }),
     {
       name: 'lift-lab',
+      // Catalog is bundled in exerciseLibrary.ts, so a version bump is not required to ship new lifts.
       version: 1,
       partialize: (state) => ({
         templates: state.templates,
