@@ -3,6 +3,7 @@ import type {
   LoggedSet,
   RoutineExercise,
   SessionExercise,
+  WarmupPlan,
   WeightEntry,
   Workout,
   WorkoutExercise,
@@ -17,6 +18,8 @@ export interface LiftData {
   weightLog: WeightEntry[];
   /** True after Pull, Push, and Lower have been offered once. */
   presetsSeeded: boolean;
+  /** True after preset warm-ups have been offered once. Deleting them does not bring them back. */
+  presetWarmupsSeeded: boolean;
 }
 
 export const emptyLiftData = (): LiftData => ({
@@ -25,18 +28,22 @@ export const emptyLiftData = (): LiftData => ({
   activeWorkout: null,
   weightLog: [],
   presetsSeeded: false,
+  presetWarmupsSeeded: false,
 });
 
 /**
  * The slice sync reads and writes.
  * The in-progress session stays on the device until the workout is finished.
  */
-export function syncPayload(data: LiftData): Pick<LiftData, 'templates' | 'workouts' | 'weightLog' | 'presetsSeeded'> {
+export function syncPayload(
+  data: LiftData,
+): Pick<LiftData, 'templates' | 'workouts' | 'weightLog' | 'presetsSeeded' | 'presetWarmupsSeeded'> {
   return {
     templates: data.templates,
     workouts: data.workouts,
     weightLog: data.weightLog,
     presetsSeeded: data.presetsSeeded,
+    presetWarmupsSeeded: data.presetWarmupsSeeded,
   };
 }
 
@@ -61,7 +68,21 @@ function sanitizeSet(value: unknown): LoggedSet | null {
     weight: Math.max(0, num(value.weight)),
     reps: Math.max(0, Math.round(num(value.reps))),
     completed: value.completed === true,
+    ...(value.warmup === true ? { warmup: true } : {}),
   };
+}
+
+function sanitizeWarmups(value: unknown): WarmupPlan[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const warmups: WarmupPlan[] = [];
+  for (const item of value) {
+    if (!isRecord(item)) continue;
+    const reps = Math.max(0, Math.round(num(item.reps)));
+    const pct = Math.round(num(item.pct));
+    if (reps < 1 || pct < 1 || pct > 100) continue;
+    warmups.push({ reps, pct });
+  }
+  return warmups.length > 0 ? warmups : undefined;
 }
 
 function sanitizeRoutineExercise(value: unknown): RoutineExercise | null {
@@ -69,6 +90,7 @@ function sanitizeRoutineExercise(value: unknown): RoutineExercise | null {
   const name = value.name.trim();
   if (!name) return null;
   const equipment = equipmentOf(value);
+  const warmups = sanitizeWarmups(value.warmups);
   return {
     id: value.id,
     name,
@@ -76,6 +98,7 @@ function sanitizeRoutineExercise(value: unknown): RoutineExercise | null {
     reps: Math.max(1, Math.round(num(value.reps, 1))),
     weight: Math.max(0, num(value.weight)),
     ...(equipment ? { equipment } : {}),
+    ...(warmups ? { warmups } : {}),
   };
 }
 
@@ -173,5 +196,6 @@ export function sanitizeLiftData(value: unknown): LiftData {
     activeWorkout: sanitizeActive(record.activeWorkout),
     weightLog,
     presetsSeeded: record.presetsSeeded === true,
+    presetWarmupsSeeded: record.presetWarmupsSeeded === true,
   };
 }
