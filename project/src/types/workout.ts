@@ -14,11 +14,15 @@ export interface RoutineExercise {
   reps: number;
   /** Starting weight in pounds. The live session prefers the last logged weight. */
   weight: number;
+  /** Library option chosen for this lift, when the list has one. */
+  equipment?: string;
 }
 
 export interface WorkoutTemplate {
   id: string;
   name: string;
+  /** Coaching note shown on the routine. Presets use this for RIR, rest, and the rep range. */
+  notes?: string;
   exercises: RoutineExercise[];
 }
 
@@ -26,6 +30,7 @@ export interface WorkoutTemplate {
 export interface SessionExercise {
   id: string;
   name: string;
+  equipment?: string;
   plannedSets: number;
   plannedReps: number;
   sets: LoggedSet[];
@@ -43,6 +48,7 @@ export interface ActiveWorkout {
 export interface WorkoutExercise {
   id: string;
   name: string;
+  equipment?: string;
   sets: LoggedSet[];
 }
 

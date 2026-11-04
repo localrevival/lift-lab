@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { ActiveWorkout, LoggedSet } from '../types/workout';
 import { useWorkoutStore } from '../store/useWorkoutStore';
 import { formatClock, formatTag, formatVolume, formatWeight } from '../utils/format';
-import { activeSetId, lastPerformance, movedLbs, setCounts } from '../utils/workout';
+import { activeSetId, lastPerformance, liftLabel, movedLbs, setCounts } from '../utils/workout';
 import { releaseWakeLock, requestWakeLock } from '../utils/wakeLock';
 import { IconCheck, IconClock } from './icons';
 import { Sheet } from './Sheet';
@@ -74,7 +74,8 @@ export function LiveWorkout({ session }: { session: ActiveWorkout }) {
         {session.exercises.map((exercise) => {
           const exerciseDone = exercise.sets.length > 0 && exercise.sets.every((set) => set.completed);
           const started = exercise.sets.some((set) => set.completed) || exercise.sets.some((set) => set.id === currentId);
-          const last = lastPerformance(workouts, exercise.name);
+          const last = lastPerformance(workouts, exercise.name, exercise.equipment);
+          const label = liftLabel(exercise.name, exercise.equipment);
           const meta = exerciseDone
             ? 'DONE ✓'
             : started && last
@@ -86,7 +87,7 @@ export function LiveWorkout({ session }: { session: ActiveWorkout }) {
             <section key={exercise.id} className="border-t border-[#1f1f1f] pb-1.5 pt-3.5">
               <div className="flex items-baseline justify-between gap-3">
                 <h2 className="min-w-0 font-condensed text-[26px] font-extrabold uppercase leading-none tracking-[0.3px]">
-                  {exercise.name}
+                  {label}
                 </h2>
                 <p className="shrink-0 font-sans text-[12px] font-bold uppercase tracking-[1px] text-[#777]">{meta}</p>
               </div>
@@ -95,7 +96,7 @@ export function LiveWorkout({ session }: { session: ActiveWorkout }) {
                   key={set.id}
                   index={index}
                   set={set}
-                  exerciseName={exercise.name}
+                  exerciseName={label}
                   active={set.id === currentId}
                   dim={currentId !== null && !set.completed && set.id !== currentId && isAfter(session, currentId, set.id)}
                   onToggle={() => toggleSet(exercise.id, set.id)}

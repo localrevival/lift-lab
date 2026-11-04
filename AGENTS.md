@@ -22,12 +22,12 @@ Not in the product: rest timer, PRs, RPE, plate calculator, exercise library, fo
 
 Zustand persist key `lift-lab` in localStorage. Weights are pounds. There is no kilogram conversion.
 
-- `templates` — routines
+- `templates` — routines. Pull, Push, and Lower are inserted once when `presetsSeeded` is false. The flag stays true, so deleting one does not bring it back.
 - `workouts` — finished sessions. Each exercise has `sets[]` of `{ id, weight, reps, completed }`
 - `weightLog` — `{ id, date, weightLbs }`, one entry per day
 - `activeWorkout` — the in-progress session. It stays on the device until the workout is saved or discarded
 
-`syncPayload()` in `project/src/data/liftState.ts` returns `{ templates, workouts, weightLog }`. That is the blob sync pushes and pulls. Do not put the passcode, API keys, or auth tokens in this store. `sanitizeLiftData()` is the read boundary. Last-write-wins lives in `project/src/sync/lastWriteWins.ts`.
+`syncPayload()` in `project/src/data/liftState.ts` returns `{ templates, workouts, weightLog, presetsSeeded }`. That is the blob sync pushes and pulls. Do not put the passcode, API keys, or auth tokens in this store. `sanitizeLiftData()` is the read boundary. Last-write-wins lives in `project/src/sync/lastWriteWins.ts`.
 
 The previous iTrack key `workout-storage` is not read.
 
