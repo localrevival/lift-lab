@@ -11,6 +11,7 @@ Shipped in small steps. This codebase is the lifting log:
 - History of finished workouts
 - Progress: best weight per lift over time
 - Body weight log in pounds, with a trend
+- Daily stomach vacuums: 10 × 20s. One tap on the workout screen marks today done, and again undoes it. A streak counts the current run. No timer.
 
 Still to come, in a later PR: a running log (date, time, distance, auto pace) and weekly run distance on Progress.
 
@@ -25,9 +26,10 @@ Zustand persist key `lift-lab` in localStorage. Weights are pounds. There is no 
 - `templates` — routines. Pull, Push, and Lower are inserted once when `presetsSeeded` is false. The flag stays true, so deleting one does not bring it back.
 - `workouts` — finished sessions. Each exercise has `sets[]` of `{ id, weight, reps, completed }`
 - `weightLog` — `{ id, date, weightLbs }`, one entry per day
+- `vacuumDays` — local dates (`YYYY-MM-DD`) marked done for stomach vacuums
 - `activeWorkout` — the in-progress session. It stays on the device until the workout is saved or discarded
 
-`syncPayload()` in `project/src/data/liftState.ts` returns `{ templates, workouts, weightLog, presetsSeeded }`. That is the blob sync pushes and pulls. Do not put the passcode, API keys, or auth tokens in this store. `sanitizeLiftData()` is the read boundary. Last-write-wins lives in `project/src/sync/lastWriteWins.ts`.
+`syncPayload()` in `project/src/data/liftState.ts` returns `{ templates, workouts, weightLog, presetsSeeded, vacuumDays }`. That is the blob sync pushes and pulls. Do not put the passcode, API keys, or auth tokens in this store. `sanitizeLiftData()` is the read boundary. Last-write-wins lives in `project/src/sync/lastWriteWins.ts`.
 
 The previous iTrack key `workout-storage` is not read.
 

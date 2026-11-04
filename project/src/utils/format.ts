@@ -46,6 +46,26 @@ export function todayKey(now = new Date()): string {
   return `${y}-${m}-${d}`;
 }
 
+function shiftDay(key: string, delta: number): string {
+  const [year, month, day] = key.split('-').map(Number);
+  return todayKey(new Date(year, month - 1, day + delta));
+}
+
+/**
+ * Consecutive done days ending today.
+ * If today is still open, the run may end yesterday. A missed day before that breaks it.
+ */
+export function vacuumStreak(days: readonly string[], today = todayKey()): number {
+  const done = new Set(days);
+  let cursor = done.has(today) ? today : shiftDay(today, -1);
+  let count = 0;
+  while (done.has(cursor)) {
+    count += 1;
+    cursor = shiftDay(cursor, -1);
+  }
+  return count;
+}
+
 export function clampWeight(n: number): number {
   if (!Number.isFinite(n) || n < 0) return 0;
   return Math.round(Math.min(n, 2000) * 10) / 10;

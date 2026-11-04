@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "node --experimental-strip-types --test src/sync/lastWriteWins.test.ts api/sync.test.ts"
+    "test": "node --experimental-strip-types --test src/sync/lastWriteWins.test.ts src/utils/vacuum.test.ts api/sync.test.ts"
   },
   "dependencies": {
     "@fontsource/barlow": "^5.2.5",
