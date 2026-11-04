@@ -1,5 +1,5 @@
 import type { ActiveWorkout, LoggedSet, SessionExercise, Workout, WorkoutTemplate } from '../types/workout';
-import { formatShort } from './format';
+import { formatShort } from './format.ts';
 
 function sameName(a: string, b: string): boolean {
   return a.trim().toLowerCase() === b.trim().toLowerCase();
@@ -16,10 +16,15 @@ function liftKey(name: string, equipment?: string): string {
   return liftLabel(name, equipment).toLowerCase();
 }
 
+function isWorking(set: LoggedSet): boolean {
+  return set.warmup !== true;
+}
+
 export function movedLbs(exercises: { sets: LoggedSet[] }[]): number {
   return exercises.reduce(
     (sum, exercise) =>
-      sum + exercise.sets.reduce((inner, set) => inner + (set.completed ? set.weight * set.reps : 0), 0),
+      sum +
+      exercise.sets.reduce((inner, set) => inner + (set.completed && isWorking(set) ? set.weight * set.reps : 0), 0),
     0
   );
 }
@@ -28,8 +33,9 @@ export function setCounts(exercises: { sets: LoggedSet[] }[]): { done: number; t
   let done = 0;
   let total = 0;
   for (const exercise of exercises) {
-    total += exercise.sets.length;
-    done += exercise.sets.filter((set) => set.completed).length;
+    const sets = exercise.sets.filter(isWorking);
+    total += sets.length;
+    done += sets.filter((set) => set.completed).length;
   }
   return { done, total };
 }
@@ -54,10 +60,29 @@ export function lastPerformance(
   for (const workout of sorted) {
     const exercise = workout.exercises.find((item) => liftKey(item.name, item.equipment) === key);
     if (!exercise) continue;
-    const done = [...exercise.sets].reverse().find((set) => set.completed);
+    const done = [...exercise.sets].reverse().find((set) => set.completed && isWorking(set));
     if (done) return { weight: done.weight, reps: done.reps };
   }
   return null;
+}
+
+/** Weight on the first working set the last time this lift was logged. */
+export function lastFirstWorkingWeight(workouts: Workout[], name: string, equipment?: string): number | null {
+  const key = liftKey(name, equipment);
+  const sorted = [...workouts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  for (const workout of sorted) {
+    const exercise = workout.exercises.find((item) => liftKey(item.name, item.equipment) === key);
+    if (!exercise) continue;
+    const first = exercise.sets.find((set) => isWorking(set));
+    if (first && first.weight > 0) return first.weight;
+  }
+  return null;
+}
+
+/** Percent of the first working weight, rounded to the nearest 5 lb. 0 when there is no history. */
+export function warmupLoad(pct: number, firstWorkingLbs: number | null): number {
+  if (firstWorkingLbs == null || firstWorkingLbs <= 0 || !(pct > 0)) return 0;
+  return Math.max(0, Math.round((firstWorkingLbs * pct) / 100 / 5) * 5);
 }
 
 export function sessionFromTemplate(template: WorkoutTemplate, workouts: Workout[]): ActiveWorkout {
@@ -69,19 +94,30 @@ export function sessionFromTemplate(template: WorkoutTemplate, workouts: Workout
     exercises: template.exercises.map((exercise) => {
       const last = lastPerformance(workouts, exercise.name, exercise.equipment);
       const weight = last?.weight ?? exercise.weight;
+      const firstWorking = lastFirstWorkingWeight(workouts, exercise.name, exercise.equipment);
       const count = Math.max(1, exercise.sets);
+      const warmups = (exercise.warmups ?? []).map((plan) => ({
+        id: crypto.randomUUID(),
+        weight: warmupLoad(plan.pct, firstWorking),
+        reps: plan.reps,
+        completed: false,
+        warmup: true,
+      }));
       return {
         id: crypto.randomUUID(),
         name: exercise.name,
         ...(exercise.equipment ? { equipment: exercise.equipment } : {}),
         plannedSets: count,
         plannedReps: exercise.reps,
-        sets: Array.from({ length: count }, () => ({
-          id: crypto.randomUUID(),
-          weight,
-          reps: exercise.reps,
-          completed: false,
-        })),
+        sets: [
+          ...warmups,
+          ...Array.from({ length: count }, () => ({
+            id: crypto.randomUUID(),
+            weight,
+            reps: exercise.reps,
+            completed: false,
+          })),
+        ],
       };
     }),
   };
@@ -102,7 +138,7 @@ export function loggedLiftNames(workouts: Workout[]): string[] {
     for (const exercise of workout.exercises) {
       const key = liftKey(exercise.name, exercise.equipment);
       if (!key || seen.has(key)) continue;
-      const hit = exercise.sets.some((set) => set.completed && set.weight > 0);
+      const hit = exercise.sets.some((set) => isWorking(set) && set.completed && set.weight > 0);
       if (!hit) continue;
       seen.add(key);
       names.push(liftLabel(exercise.name, exercise.equipment));
@@ -123,7 +159,9 @@ export function bestWeightSeries(workouts: Workout[], name: string): BestPoint[]
   for (const workout of workouts) {
     const exercise = workout.exercises.find((item) => liftKey(item.name, item.equipment) === name.trim().toLowerCase());
     if (!exercise) continue;
-    const best = exercise.sets.filter((set) => set.completed).reduce((max, set) => Math.max(max, set.weight), 0);
+    const best = exercise.sets
+      .filter((set) => isWorking(set) && set.completed)
+      .reduce((max, set) => Math.max(max, set.weight), 0);
     if (best <= 0) continue;
     const day = workout.date.slice(0, 10);
     const prev = byDay.get(day);

@@ -4,6 +4,14 @@ export interface LoggedSet {
   weight: number;
   reps: number;
   completed: boolean;
+  /** Warm-ups are stored and shown, and left out of totals, volume, and bests. */
+  warmup?: boolean;
+}
+
+/** Planned warm-up. `pct` is a percent of the first working set's weight. */
+export interface WarmupPlan {
+  reps: number;
+  pct: number;
 }
 
 /** One lift inside a saved routine. */
@@ -16,6 +24,8 @@ export interface RoutineExercise {
   weight: number;
   /** Library option chosen for this lift, when the list has one. */
   equipment?: string;
+  /** Lightest first. Omitted when the lift has no warm-ups. */
+  warmups?: WarmupPlan[];
 }
 
 export interface WorkoutTemplate {

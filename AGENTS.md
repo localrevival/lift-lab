@@ -6,8 +6,8 @@ Personal workout tracker for one person. React 18, TypeScript, Vite, Tailwind, Z
 
 Shipped in small steps. This codebase is the lifting log:
 
-- Saved routines, editable with a keyboard on a laptop
-- Live workout: weight in pounds × reps on every set. One tap marks a set done. Adding a set copies the previous set's weight and reps.
+- Saved routines, editable with a keyboard on a laptop. A lift can list warm-up sets as `{ reps, pct }` of the first working weight.
+- Live workout: weight in pounds × reps on every set. Warm-ups sit above the working sets, labeled W, and do not count. One tap marks a set done. Adding a set copies the previous set's weight and reps.
 - History of finished workouts
 - Progress: best weight per lift over time
 - Body weight log in pounds, with a trend
@@ -22,12 +22,12 @@ Not in the product: rest timer, PRs, RPE, plate calculator, exercise library, fo
 
 Zustand persist key `lift-lab` in localStorage. Weights are pounds. There is no kilogram conversion.
 
-- `templates` — routines. Pull, Push, and Lower are inserted once when `presetsSeeded` is false. The flag stays true, so deleting one does not bring it back.
-- `workouts` — finished sessions. Each exercise has `sets[]` of `{ id, weight, reps, completed }`
+- `templates` — routines. Pull, Push, and Lower are inserted once when `presetsSeeded` is false. The flag stays true, so deleting one does not bring it back. Preset warm-ups are added once when `presetWarmupsSeeded` is false, and only on matching lifts that have none.
+- `workouts` — finished sessions. Each exercise has `sets[]` of `{ id, weight, reps, completed, warmup? }`. Warm-up sets are stored and shown in history, and left out of set counts, volume, best weight, and the next session's working weight.
 - `weightLog` — `{ id, date, weightLbs }`, one entry per day
 - `activeWorkout` — the in-progress session. It stays on the device until the workout is saved or discarded
 
-`syncPayload()` in `project/src/data/liftState.ts` returns `{ templates, workouts, weightLog, presetsSeeded }`. That is the blob sync pushes and pulls. Do not put the passcode, API keys, or auth tokens in this store. `sanitizeLiftData()` is the read boundary. Last-write-wins lives in `project/src/sync/lastWriteWins.ts`.
+`syncPayload()` in `project/src/data/liftState.ts` returns `{ templates, workouts, weightLog, presetsSeeded, presetWarmupsSeeded }`. That is the blob sync pushes and pulls. Do not put the passcode, API keys, or auth tokens in this store. `sanitizeLiftData()` is the read boundary. Last-write-wins lives in `project/src/sync/lastWriteWins.ts`.
 
 The previous iTrack key `workout-storage` is not read.
 

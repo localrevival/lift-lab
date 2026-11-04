@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { emptyLiftData, sanitizeLiftData, syncPayload, type LiftData } from '../data/liftState';
-import { withPresetRoutines } from '../data/presets';
+import { withPresetRoutines, withPresetWarmups } from '../data/presets';
 import type { WeightEntry, WorkoutTemplate } from '../types/workout';
 import { clampReps, clampWeight } from '../utils/format';
 import { sessionFromTemplate } from '../utils/workout';
@@ -155,37 +155,49 @@ export const useWorkoutStore = create<LiftStore>()(
       replaceSynced: (incoming) =>
         set((state) => {
           const clean = sanitizeLiftData(incoming);
-          const next = clean.presetsSeeded ? clean : withPresetRoutines(clean);
+          const seeded = clean.presetsSeeded ? clean : withPresetRoutines(clean);
+          const next = seeded.presetWarmupsSeeded ? seeded : withPresetWarmups(seeded);
           return {
             templates: next.templates,
             workouts: next.workouts,
             weightLog: next.weightLog,
             presetsSeeded: next.presetsSeeded,
+            presetWarmupsSeeded: next.presetWarmupsSeeded,
             activeWorkout: state.activeWorkout,
           };
         }),
     }),
     {
       name: 'lift-lab',
-      // Catalog is bundled in exerciseLibrary.ts, so a version bump is not required to ship new lifts.
-      version: 1,
+      // v2 writes preset warm-ups back to storage. Merge alone stays in memory until the next edit.
+      version: 2,
+      migrate: (persisted) => {
+        const clean = sanitizeLiftData(persisted);
+        const seeded = clean.presetsSeeded ? clean : withPresetRoutines(clean);
+        return seeded.presetWarmupsSeeded ? seeded : withPresetWarmups(seeded);
+      },
       partialize: (state) => ({
         templates: state.templates,
         workouts: state.workouts,
         activeWorkout: state.activeWorkout,
         weightLog: state.weightLog,
         presetsSeeded: state.presetsSeeded,
+        presetWarmupsSeeded: state.presetWarmupsSeeded,
       }),
       merge: (persisted, current) => ({
         ...current,
-        ...withPresetRoutines(sanitizeLiftData(persisted)),
+        ...withPresetWarmups(withPresetRoutines(sanitizeLiftData(persisted))),
       }),
       onRehydrateStorage: () => (_state, error) => {
         if (error) return;
         const state = useWorkoutStore.getState();
-        if (state.presetsSeeded) return;
-        const next = withPresetRoutines(state);
-        useWorkoutStore.setState({ templates: next.templates, presetsSeeded: true });
+        if (state.presetsSeeded && state.presetWarmupsSeeded) return;
+        const next = withPresetWarmups(withPresetRoutines(state));
+        useWorkoutStore.setState({
+          templates: next.templates,
+          presetsSeeded: next.presetsSeeded,
+          presetWarmupsSeeded: next.presetWarmupsSeeded,
+        });
       },
     }
   )

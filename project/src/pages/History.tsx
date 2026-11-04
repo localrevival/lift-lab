@@ -49,20 +49,34 @@ export function History() {
                     {workout.exercises.map((exercise) => (
                       <div key={exercise.id} className="py-2">
                         <p className="font-condensed text-[18px] font-extrabold uppercase">{liftLabel(exercise.name, exercise.equipment)}</p>
-                        {exercise.sets.map((set, index) => (
-                          <div key={set.id} className="mt-1 flex items-baseline justify-between">
-                            <span className="w-8 font-condensed text-[14px] font-bold text-[#666]">{String(index + 1).padStart(2, '0')}</span>
-                            <span className={`font-condensed text-[26px] font-extrabold leading-none ${set.completed ? 'text-white' : 'text-[#444]'}`}>
-                              {formatWeight(set.weight)}
-                              <span className="ml-1 text-[12px] font-bold tracking-[1px] text-[#777]">LB</span>
-                              <span className="mx-2 text-[18px] text-[#555]">×</span>
-                              {set.reps}
-                            </span>
-                            <span className={`w-6 text-right font-bold ${set.completed ? 'text-accent' : 'text-[#333]'}`}>
-                              {set.completed ? '✓' : '–'}
-                            </span>
-                          </div>
-                        ))}
+                        {exercise.sets.map((set) => {
+                          const warmup = set.warmup === true;
+                          const workingIndex = warmup ? 0 : exercise.sets.filter((item) => !item.warmup).indexOf(set) + 1;
+                          return (
+                            <div key={set.id} className="mt-1 flex items-baseline justify-between">
+                              <span className={`w-8 font-condensed text-[14px] font-bold ${warmup ? 'text-[#555]' : 'text-[#666]'}`}>
+                                {warmup ? 'W' : String(workingIndex).padStart(2, '0')}
+                              </span>
+                              <span
+                                className={`font-condensed font-extrabold leading-none ${
+                                  warmup ? 'text-[20px] text-[#666]' : set.completed ? 'text-[26px] text-white' : 'text-[26px] text-[#444]'
+                                }`}
+                              >
+                                {formatWeight(set.weight)}
+                                <span className="ml-1 text-[12px] font-bold tracking-[1px] text-[#555]">LB</span>
+                                <span className="mx-2 text-[18px] text-[#444]">×</span>
+                                {set.reps}
+                              </span>
+                              <span
+                                className={`w-6 text-right font-bold ${
+                                  warmup ? 'text-[#555]' : set.completed ? 'text-accent' : 'text-[#333]'
+                                }`}
+                              >
+                                {set.completed ? '✓' : '–'}
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
                     ))}
                     <button type="button" className="btn-ghost mt-3 text-[#888]" onClick={() => setPendingDelete(workout.id)}>

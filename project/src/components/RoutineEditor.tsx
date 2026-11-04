@@ -1,12 +1,20 @@
 import { useEffect, useState } from 'react';
 import { findLibraryExercise } from '../data/exerciseLibrary';
-import type { RoutineExercise, WorkoutTemplate } from '../types/workout';
+import type { RoutineExercise, WarmupPlan, WorkoutTemplate } from '../types/workout';
 import { useWorkoutStore } from '../store/useWorkoutStore';
 import { clampReps, clampWeight } from '../utils/format';
 import { LiftPicker } from './LiftPicker';
 
 function blankExercise(): RoutineExercise {
   return { id: crypto.randomUUID(), name: '', sets: 3, reps: 8, weight: 0 };
+}
+
+function cleanWarmups(warmups: WarmupPlan[] | undefined): WarmupPlan[] | undefined {
+  if (!warmups?.length) return undefined;
+  return warmups.map((item) => ({
+    reps: Math.max(1, Math.round(item.reps || 1)),
+    pct: Math.max(1, Math.min(100, Math.round(item.pct || 1))),
+  }));
 }
 
 export function RoutineEditor({
@@ -28,7 +36,14 @@ export function RoutineEditor({
     if (!open) return;
     setPickerFor(null);
     setName(template?.name ?? '');
-    setExercises(template ? template.exercises.map((exercise) => ({ ...exercise })) : [blankExercise()]);
+    setExercises(
+      template
+        ? template.exercises.map((exercise) => ({
+            ...exercise,
+            ...(exercise.warmups ? { warmups: exercise.warmups.map((item) => ({ ...item })) } : {}),
+          }))
+        : [blankExercise()],
+    );
   }, [open, template]);
 
   useEffect(() => {
@@ -53,6 +68,18 @@ export function RoutineEditor({
     setExercises((list) => list.map((exercise) => (exercise.id === id ? { ...exercise, ...patch } : exercise)));
   };
 
+  const patchWarmup = (exerciseId: string, index: number, patch: Partial<WarmupPlan>) => {
+    setExercises((list) =>
+      list.map((exercise) => {
+        if (exercise.id !== exerciseId || !exercise.warmups) return exercise;
+        return {
+          ...exercise,
+          warmups: exercise.warmups.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)),
+        };
+      }),
+    );
+  };
+
   const move = (index: number, direction: -1 | 1) => {
     setExercises((list) => {
       const next = index + direction;
@@ -68,6 +95,7 @@ export function RoutineEditor({
     if (!valid) return;
     const cleaned: RoutineExercise[] = exercises.map((exercise) => {
       const equipment = exercise.equipment?.trim();
+      const warmups = cleanWarmups(exercise.warmups);
       return {
         id: exercise.id,
         name: exercise.name.trim(),
@@ -75,6 +103,7 @@ export function RoutineEditor({
         reps: Math.max(1, clampReps(exercise.reps || 1)),
         weight: clampWeight(exercise.weight || 0),
         ...(equipment ? { equipment } : {}),
+        ...(warmups ? { warmups } : {}),
       };
     });
     if (template) {
@@ -167,6 +196,50 @@ export function RoutineEditor({
                 <Stepper label="Reps" value={exercise.reps} min={1} step={1} onChange={(reps) => update(exercise.id, { reps })} />
                 <Stepper label="Lb" value={exercise.weight} min={0} step={5} onChange={(weight) => update(exercise.id, { weight })} />
               </div>
+              {(exercise.warmups ?? []).map((warmup, warmupIndex) => (
+                <div key={`${exercise.id}-w-${warmupIndex}`} className="mt-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-condensed text-[13px] font-bold tracking-[1.2px] text-[#777]">WARM-UP {warmupIndex + 1}</span>
+                    <button
+                      type="button"
+                      className="font-condensed text-[13px] font-bold uppercase tracking-[1px] text-[#888]"
+                      onClick={() =>
+                        update(exercise.id, {
+                          warmups: (exercise.warmups ?? []).filter((_, itemIndex) => itemIndex !== warmupIndex),
+                        })
+                      }
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <Stepper
+                      label="Reps"
+                      name={`Warm-up ${warmupIndex + 1} reps`}
+                      value={warmup.reps}
+                      min={1}
+                      step={1}
+                      onChange={(reps) => patchWarmup(exercise.id, warmupIndex, { reps })}
+                    />
+                    <Stepper
+                      label="%"
+                      name={`Warm-up ${warmupIndex + 1} percent`}
+                      value={warmup.pct}
+                      min={1}
+                      max={100}
+                      step={5}
+                      onChange={(pct) => patchWarmup(exercise.id, warmupIndex, { pct })}
+                    />
+                  </div>
+                </div>
+              ))}
+              <button
+                type="button"
+                className="btn-ghost mt-3"
+                onClick={() => update(exercise.id, { warmups: [...(exercise.warmups ?? []), { reps: 5, pct: 50 }] })}
+              >
+                + Warm-up
+              </button>
               <div className="mt-3 grid grid-cols-3 gap-2">
                 <button type="button" className="btn-ghost" disabled={index === 0} onClick={() => move(index, -1)}>
                   Up
@@ -202,22 +275,32 @@ export function RoutineEditor({
 
 function Stepper({
   label,
+  name,
   value,
   min,
+  max,
   step,
   onChange,
 }: {
   label: string;
+  name?: string;
   value: number;
   min: number;
+  max?: number;
   step: number;
   onChange: (value: number) => void;
 }) {
+  const called = name ?? label;
   const show = (next: number) => (Number.isInteger(next) ? String(next) : String(Math.round(next * 10) / 10));
   const [raw, setRaw] = useState(show(value));
 
+  const clamp = (next: number) => {
+    const capped = Math.min(max ?? Number.POSITIVE_INFINITY, Math.max(min, next));
+    return Math.round(capped * 10) / 10;
+  };
+
   const setValue = (next: number) => {
-    const clamped = Math.max(min, Math.round(next * 10) / 10);
+    const clamped = clamp(next);
     onChange(clamped);
     setRaw(show(clamped));
   };
@@ -228,7 +311,7 @@ function Stepper({
       <div className="mt-1 flex items-center gap-1">
         <button
           type="button"
-          aria-label={`Decrease ${label}`}
+          aria-label={`Decrease ${called}`}
           className="flex h-11 w-9 shrink-0 items-center justify-center rounded-md bg-[#1a1a1a] font-condensed text-[22px] font-bold"
           onClick={() => setValue(value - step)}
         >
@@ -236,19 +319,23 @@ function Stepper({
         </button>
         <input
           inputMode="decimal"
-          aria-label={label}
+          aria-label={called}
           value={raw}
           onFocus={(event) => event.currentTarget.select()}
           onChange={(event) => {
             const text = event.target.value;
             setRaw(text);
-            if (/^\d+(\.\d+)?$/.test(text)) onChange(Math.max(min, Number(text)));
+            if (/^\d+(\.\d+)?$/.test(text)) {
+              const clamped = clamp(Number(text));
+              onChange(clamped);
+              if (clamped !== Number(text)) setRaw(show(clamped));
+            }
           }}
           className="h-11 w-full min-w-0 bg-transparent text-center font-condensed text-[22px] font-extrabold outline-none"
         />
         <button
           type="button"
-          aria-label={`Increase ${label}`}
+          aria-label={`Increase ${called}`}
           className="flex h-11 w-9 shrink-0 items-center justify-center rounded-md bg-[#1a1a1a] font-condensed text-[22px] font-bold"
           onClick={() => setValue(value + step)}
         >

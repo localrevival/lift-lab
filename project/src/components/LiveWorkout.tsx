@@ -35,6 +35,7 @@ export function LiveWorkout({ session }: { session: ActiveWorkout }) {
   const volume = movedLbs(session.exercises);
   const currentId = activeSetId(session.exercises);
   const allDone = total > 0 && done === total;
+  const anyLogged = session.exercises.some((exercise) => exercise.sets.some((set) => set.completed));
   const pct = total > 0 ? (done / total) * 100 : 0;
 
   const editingSet = editing
@@ -72,7 +73,8 @@ export function LiveWorkout({ session }: { session: ActiveWorkout }) {
 
       <div className="mt-3">
         {session.exercises.map((exercise) => {
-          const exerciseDone = exercise.sets.length > 0 && exercise.sets.every((set) => set.completed);
+          const working = exercise.sets.filter((set) => !set.warmup);
+          const exerciseDone = working.length > 0 && working.every((set) => set.completed);
           const started = exercise.sets.some((set) => set.completed) || exercise.sets.some((set) => set.id === currentId);
           const last = lastPerformance(workouts, exercise.name, exercise.equipment);
           const label = liftLabel(exercise.name, exercise.equipment);
@@ -91,18 +93,23 @@ export function LiveWorkout({ session }: { session: ActiveWorkout }) {
                 </h2>
                 <p className="shrink-0 font-sans text-[12px] font-bold uppercase tracking-[1px] text-[#777]">{meta}</p>
               </div>
-              {exercise.sets.map((set, index) => (
-                <SetRow
-                  key={set.id}
-                  index={index}
-                  set={set}
-                  exerciseName={label}
-                  active={set.id === currentId}
-                  dim={currentId !== null && !set.completed && set.id !== currentId && isAfter(session, currentId, set.id)}
-                  onToggle={() => toggleSet(exercise.id, set.id)}
-                  onEdit={(field) => setEditing({ exerciseId: exercise.id, setId: set.id, field })}
-                />
-              ))}
+              {exercise.sets.map((set) => {
+                const warmup = set.warmup === true;
+                const workingIndex = warmup ? 0 : working.indexOf(set) + 1;
+                return (
+                  <SetRow
+                    key={set.id}
+                    mark={warmup ? 'W' : String(workingIndex).padStart(2, '0')}
+                    which={warmup ? 'warm-up' : `set ${workingIndex}`}
+                    set={set}
+                    exerciseName={label}
+                    active={set.id === currentId}
+                    dim={currentId !== null && !set.completed && set.id !== currentId && isAfter(session, currentId, set.id)}
+                    onToggle={() => toggleSet(exercise.id, set.id)}
+                    onEdit={(field) => setEditing({ exerciseId: exercise.id, setId: set.id, field })}
+                  />
+                );
+              })}
               {showAdd && (
                 <button type="button" className="btn-lime mb-2 mt-2.5" onClick={() => addSet(exercise.id)}>
                   + Add set
@@ -136,7 +143,7 @@ export function LiveWorkout({ session }: { session: ActiveWorkout }) {
       )}
 
       {confirming && (
-        <Sheet title={done > 0 ? 'FINISH' : 'NOTHING LOGGED'} onClose={() => setConfirming(false)}>
+        <Sheet title={anyLogged ? 'FINISH' : 'NOTHING LOGGED'} onClose={() => setConfirming(false)}>
           <p className="mt-3 font-condensed text-[28px] font-extrabold uppercase leading-none">
             {done} of {total} sets
           </p>
@@ -144,7 +151,7 @@ export function LiveWorkout({ session }: { session: ActiveWorkout }) {
             {formatVolume(volume)} lb · {formatClock(elapsed)}
           </p>
           <div className="mt-5 flex flex-col gap-2">
-            {done > 0 && (
+            {anyLogged && (
               <button type="button" className="btn-lime" onClick={() => finishWorkout()}>
                 Save workout
               </button>
@@ -168,7 +175,8 @@ function isAfter(session: ActiveWorkout, currentId: string, setId: string): bool
 }
 
 function SetRow({
-  index,
+  mark,
+  which,
   set,
   exerciseName,
   active,
@@ -176,7 +184,8 @@ function SetRow({
   onToggle,
   onEdit,
 }: {
-  index: number;
+  mark: string;
+  which: string;
   set: LoggedSet;
   exerciseName: string;
   active: boolean;
@@ -184,32 +193,41 @@ function SetRow({
   onToggle: () => void;
   onEdit: (field: 'weight' | 'reps') => void;
 }) {
-  const numberTone = dim ? 'text-[#444]' : 'text-white';
-  const unitTone = dim ? 'text-[#444]' : 'text-[#777]';
+  const warmup = set.warmup === true;
+  const blankWeight = warmup && set.weight <= 0;
+  const numberTone = warmup ? 'text-[#8a8a8a]' : dim ? 'text-[#444]' : 'text-white';
+  const unitTone = warmup ? 'text-[#666]' : dim ? 'text-[#444]' : 'text-[#777]';
+  const activeClass = !active
+    ? ''
+    : warmup
+      ? '-mx-[18px] border-l-4 border-[#5c5c5c] bg-[#141414] px-[14px]'
+      : '-mx-[18px] border-l-4 border-accent bg-[#111] px-[14px]';
   return (
     <div
-      className={`grid h-14 grid-cols-[30px_minmax(0,1.25fr)_22px_minmax(0,0.7fr)_52px] items-center gap-1.5 ${
-        active ? '-mx-[18px] border-l-4 border-accent bg-[#111] px-[14px]' : ''
-      }`}
+      className={`grid h-14 grid-cols-[30px_minmax(0,1.25fr)_22px_minmax(0,0.7fr)_52px] items-center gap-1.5 ${activeClass}`}
       aria-current={active ? 'step' : undefined}
     >
-      <span className={`font-condensed text-[16px] font-bold ${active ? 'text-accent' : 'text-[#666]'}`}>
-        {String(index + 1).padStart(2, '0')}
+      <span className={`font-condensed text-[16px] font-bold ${warmup ? 'text-[#8a8a8a]' : active ? 'text-accent' : 'text-[#666]'}`}>
+        {mark}
       </span>
       <button
         type="button"
         onClick={() => onEdit('weight')}
-        aria-label={`${exerciseName} set ${index + 1} weight, ${formatWeight(set.weight)} pounds`}
+        aria-label={
+          blankWeight
+            ? `${exerciseName} ${which} weight, blank`
+            : `${exerciseName} ${which} weight, ${formatWeight(set.weight)} pounds`
+        }
         className={`flex h-full items-baseline justify-end whitespace-nowrap font-condensed text-[38px] font-extrabold leading-none ${numberTone}`}
       >
-        {formatWeight(set.weight)}
-        <span className={`ml-[3px] align-baseline text-[14px] font-bold tracking-[1px] ${unitTone}`}>LB</span>
+        {blankWeight ? '–' : formatWeight(set.weight)}
+        {!blankWeight && <span className={`ml-[3px] align-baseline text-[14px] font-bold tracking-[1px] ${unitTone}`}>LB</span>}
       </button>
       <span className="text-center font-condensed text-[22px] font-bold text-[#555]">×</span>
       <button
         type="button"
         onClick={() => onEdit('reps')}
-        aria-label={`${exerciseName} set ${index + 1} reps, ${set.reps}`}
+        aria-label={`${exerciseName} ${which} reps, ${set.reps}`}
         className={`flex h-full items-baseline justify-start font-condensed text-[38px] font-extrabold leading-none ${numberTone}`}
       >
         {set.reps}
@@ -218,10 +236,16 @@ function SetRow({
         type="button"
         role="checkbox"
         aria-checked={set.completed}
-        aria-label={set.completed ? `Mark ${exerciseName} set ${index + 1} not done` : `Mark ${exerciseName} set ${index + 1} done`}
+        aria-label={set.completed ? `Mark ${exerciseName} ${which} not done` : `Mark ${exerciseName} ${which} done`}
         onClick={onToggle}
         className={`flex h-12 w-12 items-center justify-center justify-self-end rounded-lg border-[2.5px] ${
-          set.completed ? 'border-accent bg-accent' : active ? 'border-accent bg-transparent' : 'border-[#333] bg-transparent'
+          set.completed
+            ? 'border-accent bg-accent'
+            : active
+              ? warmup
+                ? 'border-[#666] bg-transparent'
+                : 'border-accent bg-transparent'
+              : 'border-[#333] bg-transparent'
         }`}
       >
         {set.completed && <IconCheck />}
