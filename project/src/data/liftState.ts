@@ -15,6 +15,8 @@ export interface LiftData {
   workouts: Workout[];
   activeWorkout: ActiveWorkout | null;
   weightLog: WeightEntry[];
+  /** True after Pull, Push, and Lower have been offered once. */
+  presetsSeeded: boolean;
 }
 
 export const emptyLiftData = (): LiftData => ({
@@ -22,17 +24,19 @@ export const emptyLiftData = (): LiftData => ({
   workouts: [],
   activeWorkout: null,
   weightLog: [],
+  presetsSeeded: false,
 });
 
 /**
  * The slice sync reads and writes.
  * The in-progress session stays on the device until the workout is finished.
  */
-export function syncPayload(data: LiftData): Pick<LiftData, 'templates' | 'workouts' | 'weightLog'> {
+export function syncPayload(data: LiftData): Pick<LiftData, 'templates' | 'workouts' | 'weightLog' | 'presetsSeeded'> {
   return {
     templates: data.templates,
     workouts: data.workouts,
     weightLog: data.weightLog,
+    presetsSeeded: data.presetsSeeded,
   };
 }
 
@@ -83,7 +87,8 @@ function sanitizeTemplate(value: unknown): WorkoutTemplate | null {
   if (!name) return null;
   const exercises = value.exercises.map(sanitizeRoutineExercise).filter((item): item is RoutineExercise => item !== null);
   if (exercises.length === 0) return null;
-  return { id: value.id, name, exercises };
+  const notes = typeof value.notes === 'string' ? value.notes.trim() : '';
+  return { id: value.id, name, ...(notes ? { notes } : {}), exercises };
 }
 
 function sanitizeWorkoutExercise(value: unknown): WorkoutExercise | null {
@@ -167,5 +172,6 @@ export function sanitizeLiftData(value: unknown): LiftData {
     workouts,
     activeWorkout: sanitizeActive(record.activeWorkout),
     weightLog,
+    presetsSeeded: record.presetsSeeded === true,
   };
 }

@@ -131,6 +131,9 @@ export function RoutineEditor({
             className="mt-1 w-full border-b border-[#333] bg-transparent py-2 font-condensed text-[40px] font-black uppercase leading-none outline-none placeholder:text-[#333]"
           />
         </label>
+        {template?.notes ? (
+          <p className="mt-3 text-[14px] font-semibold leading-snug text-[#aaa]">{template.notes}</p>
+        ) : null}
 
         <div className="mt-6 flex flex-col gap-4 pb-4">
           {exercises.map((exercise, index) => (

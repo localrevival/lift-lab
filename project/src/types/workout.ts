@@ -21,6 +21,8 @@ export interface RoutineExercise {
 export interface WorkoutTemplate {
   id: string;
   name: string;
+  /** Coaching note shown on the routine. Presets use this for RIR, rest, and the rep range. */
+  notes?: string;
   exercises: RoutineExercise[];
 }
 

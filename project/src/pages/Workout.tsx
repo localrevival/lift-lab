@@ -44,6 +44,9 @@ export function Workout() {
                   {lifts} {lifts === 1 ? 'lift' : 'lifts'}
                   {last ? ` · ${formatTag(last.date)}` : ''}
                 </p>
+                {template.notes ? (
+                  <p className="mt-2 text-[13px] font-semibold leading-snug text-[#aaa]">{template.notes}</p>
+                ) : null}
                 <ul className="mt-3">
                   {template.exercises.map((exercise) => (
                     <li key={exercise.id} className="flex items-baseline justify-between gap-3 py-1">

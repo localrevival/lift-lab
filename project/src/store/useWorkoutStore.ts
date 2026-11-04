@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { emptyLiftData, sanitizeLiftData, syncPayload, type LiftData } from '../data/liftState';
+import { withPresetRoutines } from '../data/presets';
 import type { WeightEntry, WorkoutTemplate } from '../types/workout';
 import { clampReps, clampWeight } from '../utils/format';
 import { sessionFromTemplate } from '../utils/workout';
@@ -154,10 +155,12 @@ export const useWorkoutStore = create<LiftStore>()(
       replaceSynced: (incoming) =>
         set((state) => {
           const clean = sanitizeLiftData(incoming);
+          const next = clean.presetsSeeded ? clean : withPresetRoutines(clean);
           return {
-            templates: clean.templates,
-            workouts: clean.workouts,
-            weightLog: clean.weightLog,
+            templates: next.templates,
+            workouts: next.workouts,
+            weightLog: next.weightLog,
+            presetsSeeded: next.presetsSeeded,
             activeWorkout: state.activeWorkout,
           };
         }),
@@ -171,11 +174,19 @@ export const useWorkoutStore = create<LiftStore>()(
         workouts: state.workouts,
         activeWorkout: state.activeWorkout,
         weightLog: state.weightLog,
+        presetsSeeded: state.presetsSeeded,
       }),
       merge: (persisted, current) => ({
         ...current,
-        ...sanitizeLiftData(persisted),
+        ...withPresetRoutines(sanitizeLiftData(persisted)),
       }),
+      onRehydrateStorage: () => (_state, error) => {
+        if (error) return;
+        const state = useWorkoutStore.getState();
+        if (state.presetsSeeded) return;
+        const next = withPresetRoutines(state);
+        useWorkoutStore.setState({ templates: next.templates, presetsSeeded: true });
+      },
     }
   )
 );
