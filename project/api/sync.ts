@@ -158,8 +158,13 @@ export async function handleSync(req: ApiRequest, res: ApiResponse, db?: SyncDb)
     }
 
     res.status(405).json({ error: 'method not allowed' });
-  } catch {
-    console.error(req.method === 'PUT' ? 'sync write failed' : 'sync read failed');
+  } catch (err) {
+    const failure = err as { code?: unknown; message?: unknown };
+    const code = typeof failure?.code === 'string' ? failure.code : undefined;
+    const message = typeof failure?.message === 'string'
+      ? failure.message.replace(/postgres(?:ql)?:\/\/\S+/gi, '[redacted]')
+      : undefined;
+    console.error(req.method === 'PUT' ? 'sync write failed' : 'sync read failed', code, message);
     res.status(502).json({ error: 'sync failed' });
   }
 }
