@@ -12,7 +12,7 @@ npm install
 npm run dev
 ```
 
-Production build: `npm run build`. The Vercel project builds `project/` and publishes `project/dist`.
+Production build: `npm run build`. The Vercel project builds `project/` and ships `project/dist`.
 
 ## Sync
 
