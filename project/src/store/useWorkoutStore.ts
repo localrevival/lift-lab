@@ -18,6 +18,8 @@ interface LiftStore extends LiftData {
   deleteWorkout: (id: string) => void;
   addWeightEntry: (entry: WeightEntry) => void;
   deleteWeightEntry: (id: string) => void;
+  /** Replace synced fields with a server blob. The live session stays on this device. */
+  replaceSynced: (incoming: unknown) => void;
 }
 
 export { syncPayload };
@@ -148,6 +150,16 @@ export const useWorkoutStore = create<LiftStore>()(
           };
         }),
       deleteWeightEntry: (id) => set((state) => ({ weightLog: state.weightLog.filter((item) => item.id !== id) })),
+      replaceSynced: (incoming) =>
+        set((state) => {
+          const clean = sanitizeLiftData(incoming);
+          return {
+            templates: clean.templates,
+            workouts: clean.workouts,
+            weightLog: clean.weightLog,
+            activeWorkout: state.activeWorkout,
+          };
+        }),
     }),
     {
       name: 'lift-lab',

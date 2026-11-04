@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useWorkoutStore } from '../store/useWorkoutStore';
 import { IconBody, IconHistory, IconProgress, IconWorkout } from './icons';
+import { SyncStatus } from './SyncStatus';
 
 const tabs = [
   { to: '/', label: 'Workout', icon: IconWorkout },
@@ -15,6 +16,9 @@ export function Layout() {
   return (
     <div className="min-h-screen bg-black text-white">
       <main className="pb-tab pt-safe mx-auto w-full max-w-[480px] px-[18px]">
+        <div className="flex h-4 items-center justify-end">
+          <SyncStatus />
+        </div>
         <Outlet />
       </main>
       <nav className="tab-bar fixed inset-x-0 bottom-0 z-40 border-t border-[#222] bg-black" aria-label="Primary">
