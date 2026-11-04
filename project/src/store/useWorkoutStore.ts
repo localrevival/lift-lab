@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import { emptyLiftData, sanitizeLiftData, syncPayload, type LiftData } from '../data/liftState';
 import { withPresetRoutines } from '../data/presets';
 import type { WeightEntry, WorkoutTemplate } from '../types/workout';
-import { clampReps, clampWeight } from '../utils/format';
+import { clampReps, clampWeight, todayKey } from '../utils/format';
 import { sessionFromTemplate } from '../utils/workout';
 
 interface LiftStore extends LiftData {
@@ -19,6 +19,8 @@ interface LiftStore extends LiftData {
   deleteWorkout: (id: string) => void;
   addWeightEntry: (entry: WeightEntry) => void;
   deleteWeightEntry: (id: string) => void;
+  /** Mark today's stomach vacuums done, or undo that mark. */
+  toggleVacuumToday: () => void;
   /** Replace synced fields with a server blob. The live session stays on this device. */
   replaceSynced: (incoming: unknown) => void;
 }
@@ -152,6 +154,12 @@ export const useWorkoutStore = create<LiftStore>()(
           };
         }),
       deleteWeightEntry: (id) => set((state) => ({ weightLog: state.weightLog.filter((item) => item.id !== id) })),
+      toggleVacuumToday: () =>
+        set((state) => {
+          const today = todayKey();
+          const rest = state.vacuumDays.filter((day) => day !== today);
+          return { vacuumDays: state.vacuumDays.includes(today) ? rest : [...rest, today].sort() };
+        }),
       replaceSynced: (incoming) =>
         set((state) => {
           const clean = sanitizeLiftData(incoming);
@@ -161,6 +169,7 @@ export const useWorkoutStore = create<LiftStore>()(
             workouts: next.workouts,
             weightLog: next.weightLog,
             presetsSeeded: next.presetsSeeded,
+            vacuumDays: next.vacuumDays,
             activeWorkout: state.activeWorkout,
           };
         }),
@@ -175,6 +184,7 @@ export const useWorkoutStore = create<LiftStore>()(
         activeWorkout: state.activeWorkout,
         weightLog: state.weightLog,
         presetsSeeded: state.presetsSeeded,
+        vacuumDays: state.vacuumDays,
       }),
       merge: (persisted, current) => ({
         ...current,

@@ -5,8 +5,31 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { Sheet } from '../components/Sheet';
 import { useWorkoutStore } from '../store/useWorkoutStore';
 import type { WorkoutTemplate } from '../types/workout';
-import { formatTag } from '../utils/format';
+import { formatTag, todayKey, vacuumStreak } from '../utils/format';
 import { latestWorkoutFor, liftLabel } from '../utils/workout';
+
+function VacuumCheckoff() {
+  const vacuumDays = useWorkoutStore((state) => state.vacuumDays);
+  const toggleVacuumToday = useWorkoutStore((state) => state.toggleVacuumToday);
+  const today = todayKey();
+  const done = vacuumDays.includes(today);
+  const streak = vacuumStreak(vacuumDays, today);
+
+  return (
+    <section className="mt-4 rounded-lg border border-[#1f1f1f] px-4 py-4">
+      <h2 className="font-condensed text-[22px] font-extrabold uppercase leading-none">Stomach vacuums · 10 × 20s</h2>
+      <p className="mt-2 text-[12px] font-bold uppercase tracking-[1px] text-[#777]">Streak {streak}</p>
+      <button
+        type="button"
+        className={`${done ? 'btn-lime' : 'btn-line'} mt-3`}
+        aria-pressed={done}
+        onClick={toggleVacuumToday}
+      >
+        {done ? 'Done today' : 'Mark done'}
+      </button>
+    </section>
+  );
+}
 
 export function Workout() {
   const templates = useWorkoutStore((state) => state.templates);
@@ -17,11 +40,19 @@ export function Workout() {
   const [editor, setEditor] = useState<WorkoutTemplate | null | 'new'>(null);
   const [pendingDelete, setPendingDelete] = useState<WorkoutTemplate | null>(null);
 
-  if (active) return <LiveWorkout session={active} />;
+  if (active) {
+    return (
+      <div>
+        <VacuumCheckoff />
+        <LiveWorkout session={active} />
+      </div>
+    );
+  }
 
   return (
     <div>
       <ScreenHeader tag="LIFT LAB" title="Workout" />
+      <VacuumCheckoff />
       {templates.length === 0 ? (
         <div className="mt-8">
           <p className="font-condensed text-[22px] font-bold uppercase tracking-[1px] text-[#888]">No routines yet</p>

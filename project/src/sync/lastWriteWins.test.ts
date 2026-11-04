@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { decideSync, payloadIsEmpty, type SyncDecisionInput } from './lastWriteWins.ts';
+import { contentUpdatedAt, decideSync, payloadIsEmpty, type SyncDecisionInput } from './lastWriteWins.ts';
 
 const server = '2026-10-29T12:00:00.000Z';
 const serverMs = Date.parse(server);
@@ -84,4 +84,13 @@ test('payloadIsEmpty ignores blobs with no training data', () => {
   assert.equal(payloadIsEmpty(null), true);
   assert.equal(payloadIsEmpty({ templates: [], workouts: [], weightLog: [] }), true);
   assert.equal(payloadIsEmpty({ templates: [{ id: 'push' }], workouts: [], weightLog: [] }), false);
+  assert.equal(payloadIsEmpty({ templates: [], workouts: [], weightLog: [], vacuumDays: [] }), true);
+  assert.equal(payloadIsEmpty({ templates: [], workouts: [], weightLog: [], vacuumDays: ['2026-11-04'] }), false);
+});
+
+test('contentUpdatedAt counts a vacuum day when nothing else is dated', () => {
+  assert.equal(
+    contentUpdatedAt({ workouts: [], weightLog: [], vacuumDays: ['2026-11-04'] }),
+    Date.parse('2026-11-04'),
+  );
 });

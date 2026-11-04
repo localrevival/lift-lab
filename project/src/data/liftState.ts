@@ -17,6 +17,8 @@ export interface LiftData {
   weightLog: WeightEntry[];
   /** True after Pull, Push, and Lower have been offered once. */
   presetsSeeded: boolean;
+  /** Local dates (YYYY-MM-DD) the stomach-vacuum check-off was marked done. */
+  vacuumDays: string[];
 }
 
 export const emptyLiftData = (): LiftData => ({
@@ -25,18 +27,22 @@ export const emptyLiftData = (): LiftData => ({
   activeWorkout: null,
   weightLog: [],
   presetsSeeded: false,
+  vacuumDays: [],
 });
 
 /**
  * The slice sync reads and writes.
  * The in-progress session stays on the device until the workout is finished.
  */
-export function syncPayload(data: LiftData): Pick<LiftData, 'templates' | 'workouts' | 'weightLog' | 'presetsSeeded'> {
+export function syncPayload(
+  data: LiftData
+): Pick<LiftData, 'templates' | 'workouts' | 'weightLog' | 'presetsSeeded' | 'vacuumDays'> {
   return {
     templates: data.templates,
     workouts: data.workouts,
     weightLog: data.weightLog,
     presetsSeeded: data.presetsSeeded,
+    vacuumDays: data.vacuumDays,
   };
 }
 
@@ -145,6 +151,17 @@ function sanitizeActive(value: unknown): ActiveWorkout | null {
   };
 }
 
+const DAY_KEY = /^\d{4}-\d{2}-\d{2}$/;
+
+function sanitizeVacuumDays(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const days = new Set<string>();
+  for (const item of value) {
+    if (typeof item === 'string' && DAY_KEY.test(item)) days.add(item);
+  }
+  return [...days].sort();
+}
+
 function sanitizeWeight(value: unknown): WeightEntry | null {
   if (!isRecord(value) || typeof value.id !== 'string' || typeof value.date !== 'string') return null;
   const weightLbs = num(value.weightLbs, Number.NaN);
@@ -173,5 +190,6 @@ export function sanitizeLiftData(value: unknown): LiftData {
     activeWorkout: sanitizeActive(record.activeWorkout),
     weightLog,
     presetsSeeded: record.presetsSeeded === true,
+    vacuumDays: sanitizeVacuumDays(record.vacuumDays),
   };
 }
