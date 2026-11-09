@@ -35,9 +35,9 @@ The previous iTrack key `workout-storage` is not read.
 
 Routes in `project/src/App.tsx`: `/` Workout, `/history`, `/progress`, `/body`.
 
-Style: black `#000`, accent `#C6FF00`, Barlow and Barlow Condensed, heavy all-caps titles, large tap targets. Bottom tabs: Workout, History, Progress, Body. The layout is a 480px column.
+Style: canvas `#1A1A1A`, cards `#242424`, inputs `#2E2E2E`, accent `#2F80ED`, done `#27AE60`, warm-up `#F2C94C`, text `#F5F5F5`, secondary `#8E8E93`. Inter (self-hosted, system stack fallback), large tap targets, tabular numbers. Tokens live in `project/tailwind.config.js` and `project/src/index.css`. Bottom tabs: Workout, History, Progress, Body. The layout is a 480px column.
 
-PWA: `project/public/manifest.json` (`name` and `short_name` are `lift lab`, theme `#000000`, `display: standalone`), Apple web-app meta and `apple-touch-icon` in `project/index.html`. `vite-plugin-pwa` generates the service worker. Icons are lime on black in `project/public/icons/`.
+PWA: `project/public/manifest.json` (`name` and `short_name` are `lift lab`, theme `#1A1A1A`, `display: standalone`), Apple web-app meta and `apple-touch-icon` in `project/index.html`. `vite-plugin-pwa` generates the service worker. Icons are blue on canvas in `project/public/icons/`.
 
 Wake lock lives in `project/src/utils/wakeLock.ts` and is held only while the live workout is on screen.
 

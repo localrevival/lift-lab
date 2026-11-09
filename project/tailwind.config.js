@@ -6,11 +6,18 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Barlow', ...defaultTheme.fontFamily.sans],
-        condensed: ['"Barlow Condensed"', ...defaultTheme.fontFamily.sans],
+        sans: ['Inter', ...defaultTheme.fontFamily.sans],
+        condensed: ['Inter', ...defaultTheme.fontFamily.sans],
       },
       colors: {
-        accent: '#C6FF00',
+        canvas: '#1A1A1A',
+        card: '#242424',
+        input: '#2E2E2E',
+        ink: '#F5F5F5',
+        muted: '#8E8E93',
+        accent: '#2F80ED',
+        done: '#27AE60',
+        warmup: '#F2C94C',
       },
     },
   },
