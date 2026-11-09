@@ -4,6 +4,14 @@
 
 :root {
   --tab-h: 64px;
+  --canvas: #1a1a1a;
+  --card: #242424;
+  --input: #2e2e2e;
+  --ink: #f5f5f5;
+  --muted: #8e8e93;
+  --accent: #2f80ed;
+  --done: #27ae60;
+  --warmup: #f2c94c;
   color-scheme: dark;
 }
 
@@ -11,7 +19,8 @@
   html,
   body,
   #root {
-    @apply min-h-full bg-black text-white antialiased;
+    @apply min-h-full bg-canvas text-ink antialiased;
+    font-variant-numeric: tabular-nums;
   }
 
   html {
@@ -31,9 +40,14 @@
     font-size: 16px;
   }
 
+  input:focus-visible {
+    outline: 1.5px solid var(--accent);
+    outline-offset: 2px;
+  }
+
   ::selection {
-    background: #c6ff00;
-    color: #000;
+    background: var(--accent);
+    color: #fff;
   }
 }
 
@@ -58,8 +72,9 @@
     padding-bottom: max(20px, env(safe-area-inset-bottom));
   }
 
+  /* Class name kept so existing buttons do not need a markup pass. */
   .btn-lime {
-    @apply flex h-[58px] w-full items-center justify-center rounded-lg bg-accent font-condensed text-[22px] font-extrabold uppercase tracking-[1.5px] text-black no-underline;
+    @apply flex h-12 w-full items-center justify-center rounded-[10px] bg-accent text-[15px] font-semibold text-white no-underline;
   }
 
   .btn-lime:active {
@@ -67,18 +82,232 @@
   }
 
   .btn-lime:disabled {
-    @apply bg-[#1a1a1a] text-[#555];
+    @apply bg-input text-muted;
   }
 
   .btn-line {
-    @apply flex h-[58px] w-full items-center justify-center rounded-lg border-2 border-accent bg-black font-condensed text-[22px] font-extrabold uppercase tracking-[1.5px] text-accent no-underline;
+    @apply flex h-12 w-full items-center justify-center rounded-[10px] bg-accent/10 text-[15px] font-semibold text-accent no-underline;
   }
 
   .btn-ghost {
-    @apply flex h-12 w-full items-center justify-center rounded-lg border border-[#333] bg-black font-condensed text-[16px] font-bold uppercase tracking-[1.2px] text-white no-underline;
+    @apply flex h-12 w-full items-center justify-center rounded-[10px] bg-input text-[15px] font-semibold text-ink no-underline;
   }
 
   .btn-ghost:disabled {
     opacity: 0.35;
   }
+}
+
+/*
+  Instrument skin. Unlayered so it wins over utilities without rewriting
+  Workout, LiveWorkout, or History — those files are mid-change on other PRs.
+  Tap targets stay at least 44px. Weights and reps use tabular figures.
+*/
+.bg-black {
+  background-color: var(--canvas);
+}
+
+.bg-accent.text-black {
+  color: #fff;
+}
+
+.uppercase {
+  text-transform: none;
+}
+
+h1 {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.6px;
+  line-height: 1.15;
+  text-transform: none;
+}
+
+h2 {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  line-height: 1.25;
+  text-transform: none;
+}
+
+header .text-accent {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+header .tabular-nums {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.text-\[\#888\],
+.text-\[\#777\],
+.text-\[\#666\],
+.text-\[\#555\],
+.text-\[\#aaa\] {
+  color: var(--muted);
+}
+
+.bg-\[\#1a1a1a\] {
+  background-color: var(--input);
+}
+
+article p.text-accent {
+  color: var(--muted);
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+article span.text-accent {
+  color: var(--done);
+}
+
+article .text-\[\#444\] {
+  color: var(--muted);
+}
+
+article .text-\[26px\] {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+article.border-t,
+section.border-t {
+  margin-top: 12px;
+  border-top-width: 0;
+  border-radius: 14px;
+  background-color: var(--card);
+  padding: 14px 12px 10px;
+}
+
+section.rounded-lg.border {
+  background-color: var(--card);
+  border-color: var(--input);
+}
+
+section.border-t .btn-lime {
+  background-color: rgba(47, 128, 237, 0.12);
+  color: var(--accent);
+}
+
+[role='progressbar'] {
+  height: 4px;
+  border-radius: 2px;
+  background-color: var(--input);
+}
+
+[role='progressbar'] + div {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+[role='dialog'] {
+  background-color: var(--card);
+  border-top-color: var(--input);
+}
+
+[role='dialog'] .text-accent {
+  color: var(--muted);
+  letter-spacing: 0.3px;
+}
+
+nav[aria-label='Primary'] {
+  background-color: rgba(26, 26, 26, 0.96);
+  border-top-color: var(--input);
+  backdrop-filter: blur(16px);
+}
+
+nav[aria-label='Primary'] a {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #636366;
+}
+
+nav[aria-label='Primary'] a[aria-current='page'] {
+  color: var(--accent);
+}
+
+.grid.h-14 {
+  height: 52px;
+}
+
+.grid.h-14 > span:first-child {
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.grid.h-14 > button[aria-label*=' weight'],
+.grid.h-14 > button[aria-label*=' reps'] {
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background-color: var(--input);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+[aria-current='step'] {
+  margin-left: 0;
+  margin-right: 0;
+  border-left-width: 0;
+  background-color: transparent;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+[aria-current='step'] > button[aria-label*=' weight'],
+[aria-current='step'] > button[aria-label*=' reps'] {
+  background-color: var(--input);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+.grid.h-14:has(button[aria-checked='true']) > button[aria-label*=' weight'],
+.grid.h-14:has(button[aria-checked='true']) > button[aria-label*=' reps'] {
+  background-color: transparent;
+  color: #aeaeb2;
+  box-shadow: none;
+}
+
+.grid.h-14:has(button[aria-checked='true']) > span:first-child {
+  color: var(--muted);
+}
+
+/* Warm-up index once those rows use text-[#8a8a8a] on the set label. */
+.grid.h-14 > span.text-\[\#8a8a8a\] {
+  color: var(--warmup);
+}
+
+button[role='checkbox'] {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border-width: 2px;
+}
+
+button[role='checkbox'] svg {
+  width: 18px;
+  height: 18px;
+}
+
+button[role='checkbox'][aria-checked='true'] {
+  background-color: var(--done);
+  border-color: var(--done);
+}
+
+button[role='checkbox'][aria-checked='true'] path {
+  stroke: #fff;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
